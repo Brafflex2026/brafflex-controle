@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, desc } from 'drizzle-orm';
+import { and, eq, desc, sql } from 'drizzle-orm';
 import { cliente, contrato } from '../db/schema.js';
 import { gravarComAuditoria } from '../db/auditoria.js';
 import { verificarCampos } from '../barreira.js';
@@ -14,8 +14,9 @@ const VERBA_MAXIMA = 100_000_000_00; // R$ 100 milhões, em centavos
 
 const publico = ({ chave, ...resto }) => resto;
 
-// Autorizada = tem data de autorização e não foi revogada depois.
-const autorizada = (k) => Boolean(k.leituraAutorizadaEm) && !k.leituraRevogadaEm;
+// Autorizada = contrato ativo, com data de autorização e sem revogação depois.
+// Contrato encerrado nunca conta como autorizado, mesmo que o banco tenha ficado inconsistente por uma corrida.
+const autorizada = (k) => k.status === 'ativo' && Boolean(k.leituraAutorizadaEm) && !k.leituraRevogadaEm;
 
 // Pendência = campo desconhecido. Fim do período vazio significa "sem data de término", não pendência.
 export function pendenciasContrato(k) {
@@ -96,7 +97,11 @@ contratos.post('/clientes/:id/contratos', async (c) => {
   if (!cli) return c.json({ erro: 'cliente não encontrado' }, 404);
 
   const [repetido] = await db.select().from(contrato).where(eq(contrato.chave, chave));
-  if (repetido) return c.json(completo(repetido), 200);
+  if (repetido) {
+    // A chave pertence a outro cliente: não devolve o contrato dele por este caminho.
+    if (repetido.clienteId !== cli.id) return c.json({ erro: 'chave de envio já usada em outro cadastro' }, 409);
+    return c.json(completo(repetido), 200);
+  }
   if (cli.arquivadoEm) return c.json({ erro: 'cliente arquivado: restaure antes de criar contrato' }, 409);
 
   const corpo = (await c.req.json().catch(() => null)) ?? {};
@@ -128,7 +133,7 @@ contratos.post('/clientes/:id/contratos', async (c) => {
     );
   } catch (e) {
     const [jaCriado] = await db.select().from(contrato).where(eq(contrato.chave, chave));
-    if (jaCriado) return c.json(completo(jaCriado), 200);
+    if (jaCriado && jaCriado.clienteId === cli.id) return c.json(completo(jaCriado), 200);
     throw e;
   }
   const [criado] = await db.select().from(contrato).where(eq(contrato.id, id));
@@ -159,7 +164,7 @@ contratos.patch('/contratos/:id', async (c) => {
   await gravarComAuditoria(
     db,
     { usuario: c.get('usuario').email, acao: 'alterar', entidade: 'contrato', entidadeId: k.id, antes, depois },
-    db.update(contrato).set({ ...depois, atualizadoEm: agora() }).where(eq(contrato.id, k.id)),
+    db.update(contrato).set({ ...depois, atualizadoEm: agora() }).where(and(eq(contrato.id, k.id), eq(contrato.status, 'ativo'))),
   );
   const [novo] = await db.select().from(contrato).where(eq(contrato.id, k.id));
   return c.json(completo(novo));
@@ -169,6 +174,9 @@ contratos.post('/contratos/:id/autorizar-leitura', async (c) => {
   const k = await carregar(c);
   if (!k) return c.json({ erro: 'contrato não encontrado' }, 404);
   if (k.status === 'encerrado') return c.json({ erro: 'contrato encerrado não aceita autorização' }, 409);
+  if (autorizada(k)) return c.json({ erro: 'já existe uma autorização de leitura ativa; revogue antes de registrar outra' }, 409);
+  const [cli] = await drizzle(c.env.DB).select().from(cliente).where(eq(cliente.id, k.clienteId));
+  if (cli?.arquivadoEm) return c.json({ erro: 'cliente arquivado: restaure antes de autorizar a leitura' }, 409);
 
   const corpo = (await c.req.json().catch(() => null)) ?? {};
   const por = typeof corpo.autorizadaPor === 'string' ? corpo.autorizadaPor.trim() : '';
@@ -185,10 +193,10 @@ contratos.post('/contratos/:id/autorizar-leitura', async (c) => {
       acao: 'autorizar_leitura',
       entidade: 'contrato',
       entidadeId: k.id,
-      antes: { leituraAutorizada: autorizada(k) },
+      antes: { leituraAutorizada: false, autorizadaPor: k.leituraAutorizadaPor, autorizadaEm: k.leituraAutorizadaEm, revogadaEm: k.leituraRevogadaEm },
       depois: { leituraAutorizada: true, autorizadaPor: por },
     },
-    db.update(contrato).set({ ...mudanca, atualizadoEm: agora() }).where(eq(contrato.id, k.id)),
+    db.update(contrato).set({ ...mudanca, atualizadoEm: agora() }).where(and(eq(contrato.id, k.id), eq(contrato.status, 'ativo'))),
   );
   const [novo] = await db.select().from(contrato).where(eq(contrato.id, k.id));
   return c.json(completo(novo));
@@ -225,7 +233,13 @@ contratos.post('/contratos/:id/encerrar', async (c) => {
   const db = drizzle(c.env.DB);
   const quando = agora();
   // Encerrar também revoga a leitura dos anúncios, para a coleta nunca rodar em contrato encerrado.
-  const mudanca = { status: 'encerrado', encerradoEm: quando, atualizadoEm: quando, ...(autorizada(k) ? { leituraRevogadaEm: quando } : {}) };
+  // A revogação é decidida no próprio SQL, para pegar uma autorização que chegou depois da leitura acima.
+  const mudanca = {
+    status: 'encerrado',
+    encerradoEm: quando,
+    atualizadoEm: quando,
+    leituraRevogadaEm: sql`CASE WHEN ${contrato.leituraAutorizadaEm} IS NOT NULL AND ${contrato.leituraRevogadaEm} IS NULL THEN ${quando} ELSE ${contrato.leituraRevogadaEm} END`,
+  };
   await gravarComAuditoria(
     db,
     {

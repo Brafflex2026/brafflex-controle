@@ -9,24 +9,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { ResourceState } from '@/components/resource-state';
 import { api } from '@/api';
+import { paraCentavos, deCentavos } from '@/lib/dinheiro';
 
 const TIPOS = ['produto + marketing', 'só marketing', 'só produto'];
 const ROTULOS = { escopo: 'Escopo', verbaCentavos: 'Verba', periodoInicio: 'Início do período', contatoAprovador: 'Contato que aprova' };
 
 const aConfirmar = <span className="text-muted-foreground">a confirmar</span>;
 const mostrar = (v) => (v === null || v === undefined || v === '' ? aConfirmar : v);
-const dataBR = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : null);
+// Datas só com dia (período) vêm como AAAA-MM-DD; momentos (autorização, encerramento) vêm em UTC e viram dia de Brasília.
+const dataBR = (iso) => {
+  if (!iso) return null;
+  if (iso.length === 10) return iso.split('-').reverse().join('/');
+  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+};
 const reais = (centavos) => (centavos === null ? null : (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
 
-// "1.500,50" ou "1500.5" → centavos inteiros; vazio → null; inválido → undefined.
-function paraCentavos(texto) {
-  const t = texto.trim();
-  if (t === '') return null;
-  const limpo = t.replace(/^R\$\s*/, '').replace(/\./g, '').replace(',', '.');
-  if (!/^\d+(\.\d{1,2})?$/.test(limpo)) return undefined;
-  return Math.round(Number(limpo) * 100);
-}
-const deCentavos = (c) => (c === null || c === undefined ? '' : (c / 100).toFixed(2).replace('.', ','));
 
 // ---------- formulário ----------
 function FormularioContrato({ aberto, aoFechar, clienteId, contrato, aoSalvo }) {
@@ -63,7 +60,7 @@ function FormularioContrato({ aberto, aoFechar, clienteId, contrato, aoSalvo }) 
     setErro({ campo: '', texto: '' });
     const verba = paraCentavos(dados.verba ?? '');
     if (verba === undefined) {
-      setErro({ campo: 'verbaCentavos', texto: 'Informe a verba em reais, por exemplo 1.500,00.' });
+      setErro({ campo: 'verbaCentavos', texto: 'Informe a verba em reais, com vírgula nos centavos. Exemplo: 1.500,00 (não use ponto nos centavos).' });
       return;
     }
     const vazioNulo = (v) => ((v ?? '').trim() === '' ? null : v.trim());

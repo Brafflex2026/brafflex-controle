@@ -133,6 +133,38 @@ it('autorizar leitura exige quem autorizou; revogar e autorizar de novo', async 
   expect(log).toEqual(expect.arrayContaining(['criar', 'autorizar_leitura', 'revogar_leitura']));
 });
 
+it('autorizar de novo com autorização ativa → 409, sem sobrescrever quem e quando', async () => {
+  const c = await (await criar(clienteA.id, { ...base, marca: 'TESTE-DuplaAut' })).json();
+  const a = await (await chamar(`/api/contratos/${c.id}/autorizar-leitura`, { metodo: 'POST', corpo: { autorizadaPor: 'TESTE-Primeira' } })).json();
+  const r = await chamar(`/api/contratos/${c.id}/autorizar-leitura`, { metodo: 'POST', corpo: { autorizadaPor: 'TESTE-Segunda' } });
+  expect(r.status).toBe(409);
+  const d = await (await chamar(`/api/contratos/${c.id}`)).json();
+  expect(d.leituraAutorizadaPor).toBe('TESTE-Primeira');
+  expect(d.leituraAutorizadaEm).toBe(a.leituraAutorizadaEm);
+});
+
+it('contrato encerrado nunca aparece com leitura autorizada, mesmo que o banco tenha ficado inconsistente', async () => {
+  const c = await (await criar(clienteA.id, { ...base, marca: 'TESTE-Inconsistente' })).json();
+  await chamar(`/api/contratos/${c.id}/autorizar-leitura`, { metodo: 'POST', corpo: { autorizadaPor: 'TESTE-Alguém' } });
+  await db().update(contrato).set({ status: 'encerrado' }).where(eq(contrato.id, c.id));
+  expect((await (await chamar(`/api/contratos/${c.id}`)).json()).leituraAutorizada).toBe(false);
+});
+
+it('a mesma chave em outro cliente → 409, sem devolver o contrato do primeiro', async () => {
+  const a = await criar(clienteA.id, { ...base, marca: 'TESTE-ChaveCompartilhada' }, 'chave-entre-clientes');
+  expect(a.status).toBe(201);
+  const b = await criar(clienteB.id, { ...base, marca: 'TESTE-Outra' }, 'chave-entre-clientes');
+  expect(b.status).toBe(409);
+  expect(JSON.stringify(await b.json())).not.toContain('TESTE-ChaveCompartilhada');
+});
+
+it('cliente arquivado não recebe autorização de leitura → 409', async () => {
+  const cli = await novoCliente('TESTE-ArquivaDepois');
+  const c = await (await criar(cli.id, { ...base, marca: 'TESTE-DoArquivado' })).json();
+  await chamar(`/api/clientes/${cli.id}/arquivar`, { metodo: 'POST' });
+  expect((await chamar(`/api/contratos/${c.id}/autorizar-leitura`, { metodo: 'POST', corpo: { autorizadaPor: 'TESTE-Alguém' } })).status).toBe(409);
+});
+
 it('revogar sem autorização ativa → 409', async () => {
   const c = await (await criar(clienteA.id, { ...base, marca: 'TESTE-SemAut' })).json();
   expect((await chamar(`/api/contratos/${c.id}/revogar-leitura`, { metodo: 'POST' })).status).toBe(409);
