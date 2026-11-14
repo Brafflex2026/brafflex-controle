@@ -10,6 +10,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { ResourceState } from '@/components/resource-state';
 import { api } from '@/api';
 import { paraCentavos, deCentavos } from '@/lib/dinheiro';
+import { BriefingDoContrato } from '@/paginas/Briefing';
 
 const TIPOS = ['produto + marketing', 'só marketing', 'só produto'];
 const ROTULOS = { escopo: 'Escopo', verbaCentavos: 'Verba', periodoInicio: 'Início do período', contatoAprovador: 'Contato que aprova' };
@@ -360,6 +361,8 @@ export function PaginaContrato({ id }) {
               ))}
             </CardContent>
           </Card>
+
+          <BriefingDoContrato contratoId={k.id} encerrado={encerrado} />
 
           <Card>
             <CardHeader><CardTitle className="text-lg">Pendências</CardTitle></CardHeader>

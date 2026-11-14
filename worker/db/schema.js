@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const usuario = sqliteTable('usuario', {
   email: text('email').primaryKey(),
@@ -57,6 +57,27 @@ export const contrato = sqliteTable('contrato', {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
+
+// Versões do briefing de entrada. Nunca se edita uma versão: cada mudança é a versão seguinte.
+export const briefing = sqliteTable(
+  'briefing',
+  {
+    id: text('id').primaryKey(),
+    chave: text('chave').notNull().unique(),
+    contratoId: text('contrato_id')
+      .notNull()
+      .references(() => contrato.id),
+    versao: integer('versao').notNull(),
+    conteudo: text('conteudo').notNull(),
+    criadoPor: text('criado_por').notNull(),
+    criadoEm: text('criado_em')
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    confirmadoEm: text('confirmado_em'),
+    confirmadoPor: text('confirmado_por'),
+  },
+  (t) => [uniqueIndex('briefing_contrato_versao').on(t.contratoId, t.versao)],
+);
 
 export const auditoriaApp = sqliteTable('auditoria_app', {
   id: integer('id').primaryKey({ autoIncrement: true }),

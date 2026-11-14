@@ -32,7 +32,15 @@ export function verificarTexto(texto) {
   if (typeof texto !== 'string' || texto === '') return null;
   const t = normalizar(texto);
   for (const [tipo, regra] of PADROES) {
-    if (regra.test(t)) return { motivo: `parece conter ${tipo}; o app não guarda esse tipo de dado` };
+    if (!regra.test(t)) continue;
+    const resultado = { motivo: `parece conter ${tipo}; o app não guarda esse tipo de dado` };
+    // Em texto de várias linhas, diz em qual linha está (sem repetir o valor), para a pessoa achar e corrigir.
+    const linhas = t.split(/\r?\n/);
+    if (linhas.length > 1) {
+      const n = linhas.findIndex((l) => regra.test(l)) + 1;
+      if (n > 0) resultado.linha = n;
+    }
+    return resultado;
   }
   return null;
 }
@@ -41,7 +49,7 @@ export function verificarTexto(texto) {
 export function verificarCampos(objeto) {
   for (const [campo, valor] of Object.entries(objeto)) {
     const r = verificarTexto(valor);
-    if (r) return { campo, motivo: r.motivo };
+    if (r) return { campo, motivo: r.motivo, ...(r.linha ? { linha: r.linha } : {}) };
   }
   return null;
 }

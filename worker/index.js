@@ -3,6 +3,7 @@ import { exigirAcesso } from './acesso.js';
 import { eu } from './rotas/eu.js';
 import { clientes } from './rotas/clientes.js';
 import { contratos } from './rotas/contratos.js';
+import { briefings } from './rotas/briefings.js';
 
 export function criarApp(opcoes = {}) {
   const app = new Hono();
@@ -15,6 +16,7 @@ export function criarApp(opcoes = {}) {
   app.route('/api', eu);
   app.route('/api', clientes);
   app.route('/api', contratos);
+  app.route('/api', briefings);
 
   return app;
 }

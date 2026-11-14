@@ -33,4 +33,8 @@ export const api = {
   autorizarLeitura: (id, autorizadaPor) => pedir(`/api/contratos/${id}/autorizar-leitura`, { method: 'POST', body: JSON.stringify({ autorizadaPor }) }),
   revogarLeitura: (id) => pedir(`/api/contratos/${id}/revogar-leitura`, { method: 'POST' }),
   encerrarContrato: (id) => pedir(`/api/contratos/${id}/encerrar`, { method: 'POST' }),
+  briefings: (contratoId) => pedir(`/api/contratos/${contratoId}/briefings`),
+  criarBriefing: (contratoId, conteudo, chave) =>
+    pedir(`/api/contratos/${contratoId}/briefings`, { method: 'POST', body: JSON.stringify({ conteudo }), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),
+  confirmarBriefing: (id, confirmadoEm) => pedir(`/api/briefings/${id}/confirmar`, { method: 'POST', body: JSON.stringify({ confirmadoEm }) }),
 };
