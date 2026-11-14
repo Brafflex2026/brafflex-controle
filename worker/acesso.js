@@ -6,8 +6,8 @@ import { usuario } from './db/schema.js';
 // Confere o token que o Cloudflare Access coloca em cada pedido:
 // assinatura (chaves públicas da equipe), equipe (issuer) e aplicativo (aud).
 export async function verificarTokenAccess(token, { jwks, issuer, audience }) {
-  const { payload } = await jwtVerify(token, jwks, { issuer, audience });
-  return { email: payload.email ?? null, commonName: payload.common_name ?? null };
+  const { payload } = await jwtVerify(token, jwks, { issuer, audience, algorithms: ['RS256'] });
+  return { email: typeof payload.email === 'string' ? payload.email.toLowerCase() : null, commonName: payload.common_name ?? null };
 }
 
 let jwksRemoto;
@@ -19,6 +19,8 @@ export function exigirAcesso({ jwks } = {}) {
     if (!token) return c.json({ erro: 'sem credencial' }, 401);
 
     const equipe = c.env.ACCESS_EQUIPE;
+    // Sem equipe ou aplicativo configurados, não dá para validar o token: recusa em vez de deixar passar.
+    if (!equipe || !c.env.ACCESS_AUD) return c.json({ erro: 'acesso não configurado' }, 503);
     let chaves = jwks;
     if (!chaves) {
       jwksRemoto ??= createRemoteJWKSet(new URL(`${equipe}/cdn-cgi/access/certs`));

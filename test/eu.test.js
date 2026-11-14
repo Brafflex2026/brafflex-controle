@@ -65,6 +65,22 @@ it('PATCH /api/eu altera o nome e grava a auditoria com antes e depois', async (
   expect(JSON.parse(ultimo.depois)).toEqual({ nome: 'TESTE-EU-NOVO' });
 });
 
+it('PATCH com corpo null → 422, não 500', async () => {
+  const r = await chamar('/api/eu', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: 'null' });
+  expect(r.status).toBe(422);
+});
+
+it('sem ACCESS_AUD configurado → 503, mesmo com token válido', async () => {
+  const token = await assinar({ email: 'teste-eu@exemplo.com' });
+  const r = await app.request('/api/eu', { headers: { 'cf-access-jwt-assertion': token } }, { ...env, ACCESS_AUD: '' });
+  expect(r.status).toBe(503);
+});
+
+it('e-mail do token com maiúsculas ainda reconhece o usuário', async () => {
+  const r = await chamar('/api/eu', {}, 'Teste-EU@Exemplo.com');
+  expect(r.status).toBe(200);
+});
+
 it('PATCH com nome vazio → 422 e nenhuma auditoria nova', async () => {
   const antes = (await db().select().from(auditoriaApp)).length;
   const r = await chamar('/api/eu', {

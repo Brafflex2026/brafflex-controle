@@ -12,7 +12,7 @@ eu.get('/eu', (c) => c.json(publico(c.get('usuario'))));
 
 eu.patch('/eu', async (c) => {
   const atual = c.get('usuario');
-  const corpo = await c.req.json().catch(() => ({}));
+  const corpo = (await c.req.json().catch(() => null)) ?? {};
   const nome = typeof corpo.nome === 'string' ? corpo.nome.trim() : '';
   if (!nome || nome.length > 120) {
     return c.json({ erro: 'informe um nome com até 120 caracteres', campo: 'nome' }, 422);
