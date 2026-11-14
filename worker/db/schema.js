@@ -31,6 +31,33 @@ export const cliente = sqliteTable('cliente', {
     .$defaultFn(() => new Date().toISOString()),
 });
 
+// Cada marca de um cliente é um contrato. Vazio (NULL) = "a confirmar". Dinheiro em centavos.
+export const contrato = sqliteTable('contrato', {
+  id: text('id').primaryKey(),
+  chave: text('chave').notNull().unique(),
+  clienteId: text('cliente_id')
+    .notNull()
+    .references(() => cliente.id),
+  marca: text('marca').notNull(),
+  tipo: text('tipo', { enum: ['só marketing', 'só produto', 'produto + marketing'] }).notNull(),
+  escopo: text('escopo'),
+  verbaCentavos: integer('verba_centavos'),
+  periodoInicio: text('periodo_inicio'),
+  periodoFim: text('periodo_fim'),
+  status: text('status', { enum: ['ativo', 'encerrado'] }).notNull(),
+  encerradoEm: text('encerrado_em'),
+  contatoAprovador: text('contato_aprovador'),
+  leituraAutorizadaEm: text('leitura_autorizada_em'),
+  leituraAutorizadaPor: text('leitura_autorizada_por'),
+  leituraRevogadaEm: text('leitura_revogada_em'),
+  criadoEm: text('criado_em')
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  atualizadoEm: text('atualizado_em')
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
 export const auditoriaApp = sqliteTable('auditoria_app', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   ts: text('ts')

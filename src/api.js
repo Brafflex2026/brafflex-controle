@@ -25,4 +25,12 @@ export const api = {
   alterarCliente: (id, dados) => pedir(`/api/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(dados) }),
   arquivarCliente: (id) => pedir(`/api/clientes/${id}/arquivar`, { method: 'POST' }),
   restaurarCliente: (id) => pedir(`/api/clientes/${id}/restaurar`, { method: 'POST' }),
+  contratosDoCliente: (clienteId) => pedir(`/api/clientes/${clienteId}/contratos`),
+  contrato: (id) => pedir(`/api/contratos/${id}`),
+  criarContrato: (clienteId, dados, chave) =>
+    pedir(`/api/clientes/${clienteId}/contratos`, { method: 'POST', body: JSON.stringify(dados), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),
+  alterarContrato: (id, dados) => pedir(`/api/contratos/${id}`, { method: 'PATCH', body: JSON.stringify(dados) }),
+  autorizarLeitura: (id, autorizadaPor) => pedir(`/api/contratos/${id}/autorizar-leitura`, { method: 'POST', body: JSON.stringify({ autorizadaPor }) }),
+  revogarLeitura: (id) => pedir(`/api/contratos/${id}/revogar-leitura`, { method: 'POST' }),
+  encerrarContrato: (id) => pedir(`/api/contratos/${id}/encerrar`, { method: 'POST' }),
 };

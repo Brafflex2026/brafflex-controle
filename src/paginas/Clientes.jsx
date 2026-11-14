@@ -9,6 +9,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { ResourceState } from '@/components/resource-state';
 import { api } from '@/api';
+import { ContratosDoCliente } from '@/paginas/Contratos';
 
 const ROTULOS = {
   profissao: 'Profissão',
@@ -291,6 +292,8 @@ function PaginaCliente({ id }) {
               </dl>
             </CardContent>
           </Card>
+
+          <ContratosDoCliente clienteId={c.id} arquivado={Boolean(c.arquivadoEm)} />
 
           <Card>
             <CardHeader><CardTitle className="text-lg">Pendências</CardTitle></CardHeader>
