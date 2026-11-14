@@ -1,0 +1,20 @@
+{
+  "name": "brafflex-controle",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "brafflex-controle",
+      "database_id": "5136f2a6-f966-48a7-8a05-acec6806ee70",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "ACCESS_EQUIPE": "https://brafflex2026.cloudflareaccess.com"
+  }
+}
