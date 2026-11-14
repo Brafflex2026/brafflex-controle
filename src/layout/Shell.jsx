@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 
 const itens = [
   { id: 'inicio', rotulo: 'Início', icone: House, pronto: true },
-  { id: 'clientes', rotulo: 'Clientes', icone: Users },
+  { id: 'clientes', rotulo: 'Clientes', icone: Users, pronto: true },
   { id: 'demandas', rotulo: 'Demandas', icone: ClipboardList },
   { id: 'funil', rotulo: 'Funil e CRM', icone: Funnel },
   { id: 'anuncios', rotulo: 'Anúncios', icone: Megaphone },
@@ -13,7 +13,7 @@ const itens = [
   { id: 'auditoria', rotulo: 'Auditoria', icone: History },
 ];
 
-function MenuLateral({ aoEscolher }) {
+function MenuLateral({ aoEscolher, atual }) {
   return (
     <nav aria-label="Principal" className="flex flex-col gap-1 p-3">
       <p className="px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Agência</p>
@@ -21,10 +21,14 @@ function MenuLateral({ aoEscolher }) {
         pronto ? (
           <a
             key={id}
-            href="/"
-            aria-current="page"
+            href={id === 'inicio' ? '#/' : `#/${id}`}
+            aria-current={atual === id ? 'page' : undefined}
             onClick={aoEscolher}
-            className="flex h-9 items-center gap-2 rounded-md bg-brand-50 px-2 font-medium text-brand-700"
+            className={
+              atual === id
+                ? 'flex h-9 items-center gap-2 rounded-md bg-brand-50 px-2 font-medium text-brand-700'
+                : 'flex h-9 items-center gap-2 rounded-md px-2 text-foreground hover:bg-muted'
+            }
           >
             <Icone aria-hidden="true" className="size-4" />
             {rotulo}
@@ -45,7 +49,7 @@ function MenuLateral({ aoEscolher }) {
   );
 }
 
-export function Shell({ usuario, children }) {
+export function Shell({ usuario, atual, children }) {
   const [aberto, setAberto] = useState(false);
   return (
     <div className="flex h-screen flex-col">
@@ -70,13 +74,13 @@ export function Shell({ usuario, children }) {
       </header>
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-64 shrink-0 overflow-y-auto border-r bg-card lg:block">
-          <MenuLateral />
+          <MenuLateral atual={atual} />
         </aside>
         {aberto && (
           <div className="fixed inset-x-0 bottom-0 top-12 z-20 lg:hidden">
             <button className="absolute inset-0 bg-black/40" aria-label="Fechar menu" onClick={() => setAberto(false)} />
             <aside className="relative h-full w-64 max-w-[85%] overflow-y-auto border-r bg-card">
-              <MenuLateral aoEscolher={() => setAberto(false)} />
+              <MenuLateral atual={atual} aoEscolher={() => setAberto(false)} />
             </aside>
           </div>
         )}
