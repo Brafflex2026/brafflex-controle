@@ -81,6 +81,16 @@ it('e-mail do token com maiúsculas ainda reconhece o usuário', async () => {
   expect(r.status).toBe(200);
 });
 
+it('PATCH /api/eu passa pela barreira: e-mail no nome → 422 e nada muda', async () => {
+  const r = await chamar('/api/eu', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ nome: 'fulano@exemplo.com' }),
+  });
+  expect(r.status).toBe(422);
+  expect((await r.json()).campo).toBe('nome');
+});
+
 it('PATCH com nome vazio → 422 e nenhuma auditoria nova', async () => {
   const antes = (await db().select().from(auditoriaApp)).length;
   const r = await chamar('/api/eu', {

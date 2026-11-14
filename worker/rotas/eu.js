@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { usuario } from '../db/schema.js';
 import { gravarComAuditoria } from '../db/auditoria.js';
+import { verificarCampos } from '../barreira.js';
 
 export const eu = new Hono();
 
@@ -16,6 +17,10 @@ eu.patch('/eu', async (c) => {
   const nome = typeof corpo.nome === 'string' ? corpo.nome.trim() : '';
   if (!nome || nome.length > 120) {
     return c.json({ erro: 'informe um nome com até 120 caracteres', campo: 'nome' }, 422);
+  }
+  const barrado = verificarCampos({ nome });
+  if (barrado) {
+    return c.json({ erro: `Dado sensível em "nome": ${barrado.motivo}.`, campo: 'nome', motivo: barrado.motivo }, 422);
   }
   const db = drizzle(c.env.DB);
   await gravarComAuditoria(

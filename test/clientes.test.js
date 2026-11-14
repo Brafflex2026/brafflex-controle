@@ -95,6 +95,24 @@ it('barreira: CPF no nome → 422 com campo e motivo, sem devolver o valor e sem
   expect((await db().select().from(cliente).where(like(cliente.nome, '%111.444%'))).length).toBe(0);
 });
 
+it('a resposta não devolve a chave de envio', async () => {
+  const c = await (await criar({ nome: 'TESTE-SemChaveNaResposta', tipo: 'pessoa' })).json();
+  expect(c.chave).toBeUndefined();
+});
+
+it('"desde" usa a data de Brasília', async () => {
+  const c = await (await criar({ nome: 'TESTE-Desde', tipo: 'pessoa' })).json();
+  const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  expect(c.desde).toBe(hoje);
+});
+
+it('dois envios simultâneos com a mesma chave criam um só cliente', async () => {
+  const corpo = { nome: 'TESTE-Corrida', tipo: 'pessoa' };
+  const [a, b] = await Promise.all([criar(corpo, 'chave-corrida'), criar(corpo, 'chave-corrida')]);
+  expect([a.status, b.status].every((s) => s === 200 || s === 201)).toBe(true);
+  expect((await db().select().from(cliente).where(eq(cliente.nome, 'TESTE-Corrida'))).length).toBe(1);
+});
+
 it('edita e grava auditoria com antes e depois', async () => {
   const c = await (await criar({ nome: 'TESTE-Editar', tipo: 'pessoa' })).json();
   const r = await chamar(`/api/clientes/${c.id}`, { metodo: 'PATCH', corpo: { profissao: 'Dentista', conselho: 'CRO' } });

@@ -49,16 +49,21 @@ function FormularioCliente({ aberto, aoFechar, cliente, aoSalvo }) {
     });
   }, [aberto, cliente]);
 
+  // Erro de um campo que não está na tela vira mensagem geral, para nunca ficar invisível.
+  const camposVisiveis = ['nome', 'profissao', 'conselho', 'registroUf', 'registroNumero', ...(dados.saude === 'sim' ? ['rqe'] : [])];
   const mudar = (campo) => (e) => setDados((d) => ({ ...d, [campo]: e.target.value }));
 
   async function enviar(evento) {
     evento.preventDefault();
     setSalvando(true);
     setErro({ campo: '', texto: '' });
-    // Campo em branco = "a confirmar" (null). Quem quer dizer "não se aplica" marca a caixa ao lado.
+    // Em branco (ou só espaços) = "a confirmar" (null). Um traço = "não se aplica" (texto vazio no banco).
+    // O RQE só existe quando a área é saúde; fora disso nem é enviado, para não apagar nem barrar nada escondido.
     const corpo = { nome: dados.nome, tipo: dados.tipo, saude: dados.saude || null };
-    for (const k of ['profissao', 'conselho', 'registroUf', 'registroNumero', 'rqe']) {
-      corpo[k] = dados[k] === '' ? null : dados[k] === '-' ? '' : dados[k];
+    const campos = ['profissao', 'conselho', 'registroUf', 'registroNumero', ...(dados.saude === 'sim' ? ['rqe'] : [])];
+    for (const k of campos) {
+      const v = (dados[k] ?? '').trim();
+      corpo[k] = v === '' ? null : v === '-' ? '' : v;
     }
     try {
       const salvo = editando ? await api.alterarCliente(cliente.id, corpo) : await api.criarCliente(corpo, chave);
@@ -134,7 +139,7 @@ function FormularioCliente({ aberto, aoFechar, cliente, aoSalvo }) {
             </NativeSelect>
           </div>
           {dados.saude === 'sim' && campoTexto('rqe', 'RQE')}
-          {erro.texto && !erro.campo && <p role="alert" className="text-sm text-destructive">{erro.texto}</p>}
+          {erro.texto && !camposVisiveis.includes(erro.campo) && <p role="alert" className="text-sm text-destructive">{erro.texto}</p>}
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
             <Button type="submit" disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</Button>

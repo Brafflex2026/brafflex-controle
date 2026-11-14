@@ -25,8 +25,13 @@ export function pendencias(c) {
   return lista;
 }
 
-const completo = (c) => ({ ...c, pendencias: pendencias(c) });
-const resumo = (c) => ({ ...c, totalPendencias: pendencias(c).length });
+// A chave de envio é interna: não sai nas respostas.
+const publico = ({ chave, ...resto }) => resto;
+const completo = (c) => ({ ...publico(c), pendencias: pendencias(c) });
+const resumo = (c) => ({ ...publico(c), totalPendencias: pendencias(c).length });
+
+// Data de hoje no fuso de Brasília (o servidor roda em UTC e viraria o dia às 21h).
+const hojeEmBrasilia = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
 function erro422(c, campo, mensagem, motivo) {
   return c.json({ erro: mensagem, campo, ...(motivo ? { motivo } : {}) }, 422);
@@ -100,7 +105,7 @@ clientes.post('/clientes', async (c) => {
     registroNumero: null,
     rqe: null,
     saude: null,
-    desde: new Date().toISOString().slice(0, 10),
+    desde: hojeEmBrasilia(),
     arquivadoEm: null,
     ...v.dados,
   };
