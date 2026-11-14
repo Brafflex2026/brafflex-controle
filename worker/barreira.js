@@ -30,10 +30,10 @@ function normalizar(texto) {
 }
 
 // Devolve null se o texto está limpo, ou { motivo } se algum padrão bateu.
-export function verificarTexto(texto) {
+export function verificarTexto(texto, padroes = PADROES) {
   if (typeof texto !== 'string' || texto === '') return null;
   const t = normalizar(texto);
-  for (const [tipo, regra] of PADROES) {
+  for (const [tipo, regra] of padroes) {
     if (!regra.test(t)) continue;
     const resultado = { motivo: `parece conter ${tipo}; o app não guarda esse tipo de dado` };
     // Em texto de várias linhas, diz em qual linha está (sem repetir o valor), para a pessoa achar e corrigir.
@@ -46,6 +46,20 @@ export function verificarTexto(texto) {
   }
   return null;
 }
+
+// Variante para identificadores de contas e sistemas (id de conta, pixel, endereço de site).
+// Número de conta com 10 a 16 dígitos é normal e não pode ser confundido com telefone, CPF ou CNPJ, então esses três
+// padrões ficam de fora. Em troca, recusa o que tem cara de chave de acesso: cadeia longa e opaca e prefixos conhecidos.
+const IGNORADOS_EM_IDENTIFICADOR = new Set(['CPF', 'CNPJ', 'telefone']);
+const PADROES_IDENTIFICADOR = [
+  ...PADROES.filter(([tipo]) => !IGNORADOS_EM_IDENTIFICADOR.has(tipo)),
+  ['token de acesso conhecido (Meta ou Google)', /(?<![A-Za-z0-9_-])(?:EAA[A-Za-z0-9]{20,}|ya29\.[A-Za-z0-9_-]{10,}|GOCSPX-[A-Za-z0-9_-]{10,})/],
+  [
+    'cadeia longa e opaca (parece chave de acesso)',
+    /(?<![A-Za-z0-9_-])(?=[A-Za-z0-9_-]{32,})(?=[A-Za-z0-9_-]{0,400}\d)(?=[A-Za-z0-9_-]{0,400}[A-Za-z])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])/,
+  ],
+];
+export const verificarIdentificador = (texto) => verificarTexto(texto, PADROES_IDENTIFICADOR);
 
 // Confere vários campos de uma vez; devolve { campo, motivo } do primeiro que bater.
 export function verificarCampos(objeto) {

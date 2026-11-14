@@ -4,6 +4,7 @@ import { eu } from './rotas/eu.js';
 import { clientes } from './rotas/clientes.js';
 import { contratos } from './rotas/contratos.js';
 import { briefings } from './rotas/briefings.js';
+import { integracoes } from './rotas/integracoes.js';
 
 export function criarApp(opcoes = {}) {
   const app = new Hono();
@@ -23,6 +24,7 @@ export function criarApp(opcoes = {}) {
   app.route('/api', clientes);
   app.route('/api', contratos);
   app.route('/api', briefings);
+  app.route('/api', integracoes);
 
   return app;
 }

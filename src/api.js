@@ -33,6 +33,13 @@ export const api = {
   autorizarLeitura: (id, autorizadaPor) => pedir(`/api/contratos/${id}/autorizar-leitura`, { method: 'POST', body: JSON.stringify({ autorizadaPor }) }),
   revogarLeitura: (id) => pedir(`/api/contratos/${id}/revogar-leitura`, { method: 'POST' }),
   encerrarContrato: (id) => pedir(`/api/contratos/${id}/encerrar`, { method: 'POST' }),
+  integracoes: (contratoId) => pedir(`/api/contratos/${contratoId}/integracoes`),
+  criarIntegracao: (contratoId, dados, chave) =>
+    pedir(`/api/contratos/${contratoId}/integracoes`, { method: 'POST', body: JSON.stringify(dados), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),
+  alterarIntegracao: (id, dados) => pedir(`/api/integracoes/${id}`, { method: 'PATCH', body: JSON.stringify(dados) }),
+  verificarIntegracao: (id, verificadaEm) => pedir(`/api/integracoes/${id}/verificar`, { method: 'POST', body: JSON.stringify({ verificadaEm }) }),
+  revogarIntegracao: (id) => pedir(`/api/integracoes/${id}/revogar`, { method: 'POST' }),
+  reativarIntegracao: (id) => pedir(`/api/integracoes/${id}/reativar`, { method: 'POST' }),
   briefings: (contratoId) => pedir(`/api/contratos/${contratoId}/briefings`),
   criarBriefing: (contratoId, conteudo, chave) =>
     pedir(`/api/contratos/${contratoId}/briefings`, { method: 'POST', body: JSON.stringify({ conteudo }), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),

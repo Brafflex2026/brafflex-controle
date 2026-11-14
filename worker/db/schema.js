@@ -79,6 +79,33 @@ export const briefing = sqliteTable(
   (t) => [uniqueIndex('briefing_contrato_versao').on(t.contratoId, t.versao)],
 );
 
+// Ligação de um contrato com um sistema externo. Guarda só o identificador público, nunca senha nem token.
+export const TIPOS_INTEGRACAO = ['conta Meta', 'conta Google', 'pixel', 'página/IG', 'site', 'CRM do cliente'];
+export const integracao = sqliteTable(
+  'integracao',
+  {
+    id: text('id').primaryKey(),
+    chave: text('chave').notNull().unique(),
+    contratoId: text('contrato_id')
+      .notNull()
+      .references(() => contrato.id),
+    tipo: text('tipo', { enum: TIPOS_INTEGRACAO }).notNull(),
+    idExterno: text('id_externo'),
+    dono: text('dono'),
+    estado: text('estado', { enum: ['pendente', 'verificada', 'revogada'] }).notNull(),
+    oQueFalta: text('o_que_falta'),
+    verificadaEm: text('verificada_em'),
+    revogadaEm: text('revogada_em'),
+    criadoEm: text('criado_em')
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    atualizadoEm: text('atualizado_em')
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (t) => [uniqueIndex('integracao_contrato_tipo_id').on(t.contratoId, t.tipo, t.idExterno)],
+);
+
 export const auditoriaApp = sqliteTable('auditoria_app', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   ts: text('ts')

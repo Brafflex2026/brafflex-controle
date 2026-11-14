@@ -11,6 +11,7 @@ import { ResourceState } from '@/components/resource-state';
 import { api } from '@/api';
 import { paraCentavos, deCentavos } from '@/lib/dinheiro';
 import { BriefingDoContrato } from '@/paginas/Briefing';
+import { IntegracoesDoContrato } from '@/paginas/Integracoes';
 
 const TIPOS = ['produto + marketing', 'só marketing', 'só produto'];
 const ROTULOS = { escopo: 'Escopo', verbaCentavos: 'Verba', periodoInicio: 'Início do período', contatoAprovador: 'Contato que aprova' };
@@ -361,6 +362,8 @@ export function PaginaContrato({ id }) {
               ))}
             </CardContent>
           </Card>
+
+          <IntegracoesDoContrato contratoId={k.id} encerrado={encerrado} />
 
           <BriefingDoContrato contratoId={k.id} encerrado={encerrado} />
 
