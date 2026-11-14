@@ -151,7 +151,7 @@ export function BriefingDoContrato({ contratoId, encerrado }) {
                 : 'Nenhuma versão confirmada pelo cliente ainda.'}
           </CardDescription>
         </div>
-        {!encerrado && <Button size="sm" onClick={() => setNova(true)}><Plus aria-hidden="true" />Nova versão</Button>}
+        {!encerrado && estado === 'pronto' && <Button size="sm" onClick={() => setNova(true)}><Plus aria-hidden="true" />Nova versão</Button>}
       </CardHeader>
       <CardContent>
         {estado === 'carregando' && <ResourceState status="loading" title="Carregando briefing…" />}
@@ -178,7 +178,7 @@ export function BriefingDoContrato({ contratoId, encerrado }) {
                     {!encerrado && !v.confirmadoEm && <Button variant="outline" size="sm" onClick={() => setConfirmando(v)}>Registrar “é isso”</Button>}
                   </div>
                 </div>
-                {aberta === v.id && <p className="whitespace-pre-wrap rounded-md bg-muted p-3 text-sm">{v.conteudo}</p>}
+                {aberta === v.id && <p className="whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-sm">{v.conteudo}</p>}
               </li>
             ))}
           </ul>

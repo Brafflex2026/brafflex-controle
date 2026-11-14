@@ -8,6 +8,12 @@ import { briefings } from './rotas/briefings.js';
 export function criarApp(opcoes = {}) {
   const app = new Hono();
 
+  // Erro inesperado: registra só o tipo (a mensagem de banco pode trazer o texto que a pessoa enviou) e responde genérico.
+  app.onError((e, c) => {
+    console.error('erro interno', e?.name ?? 'Erro');
+    return c.json({ erro: 'erro interno; tente de novo' }, 500);
+  });
+
   // Pública de propósito: só diz que o servidor está de pé, sem dado nenhum.
   app.get('/api/saude', (c) => c.json({ ok: true }));
 

@@ -39,6 +39,29 @@ for (const [tipo, texto] of recusados) {
   });
 }
 
+it('recusa dado escondido com caracteres invisíveis (hífen suave, bidi, separador invisível)', () => {
+  expect(verificarTexto('cpf 123.456.789-­09')).not.toBeNull();
+  expect(verificarTexto('cpf 123.456.789-‪09')).not.toBeNull();
+  expect(verificarTexto('fulano⁢@exemplo.com')).not.toBeNull();
+  expect(verificarTexto('cpf 111.444.͏777-35')).not.toBeNull();
+});
+
+it('texto enorme e hostil é analisado rápido (sem travar o servidor)', () => {
+  const casos = [
+    'senha' + ' '.repeat(19990) + 'x',
+    'a'.repeat(20000),
+    'a@' + 'a'.repeat(19990),
+    '1'.repeat(20000),
+    ('a.'.repeat(10000)),
+    '(' .repeat(20000),
+  ];
+  for (const t of casos) {
+    const inicio = performance.now();
+    verificarTexto(t);
+    expect(performance.now() - inicio).toBeLessThan(250);
+  }
+});
+
 it('aceita texto comum, inclusive com marcador de paciente', () => {
   expect(verificarTexto('Dermatologista, clínica no centro')).toBeNull();
   expect(verificarTexto('paciente [NOME DE PACIENTE] agendou')).toBeNull();

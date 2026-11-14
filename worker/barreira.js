@@ -7,11 +7,12 @@ const PADROES = [
   ['CPF', /(?<!\d)\d{3}[\s.]?\d{3}[\s.]?\d{3}[\s-]?\d{2}(?!\d)/],
   ['CNPJ', /(?<!\d)\d{2}[\s.]?\d{3}[\s.]?\d{3}[\s/]?\d{4}[\s-]?\d{2}(?!\d)/],
   ['telefone', /(?<!\d)(?:\+?55\s?)?\(?\d{2}\)?[\s.-]?9?\d{4}[\s.-]?\d{4}(?!\d)/],
-  ['e-mail', /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/],
+  // Limites de tamanho (64 e 255) evitam que texto enorme faça a análise demorar.
+  ['e-mail', /[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,}/],
   ['chave de API', /\b(?:sk-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|xox[abp]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,})\b/],
   ['token de acesso (JWT)', /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}/],
   ['sequência longa de letras e números (parece segredo)', /(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])/],
-  ['senha ou token com valor', /\b(?:senha|password|passwd|token|api[_ -]?key|secret)\b\s*[:=]?\s*["']?(?=[^\s"'<>[\]{}]*\d)[^\s"'<>[\]{}]{6,}/i],
+  ['senha ou token com valor', /\b(?:senha|password|passwd|token|api[_ -]?key|secret)\b[\s:=]{0,10}["']?(?=[^\s"'<>[\]{}]{0,200}\d)[^\s"'<>[\]{}]{6,}/i],
   [
     'nome de paciente',
     new RegExp(`\\b[Pp]aciente:?\\s+(?!\\[)(?!(?:Identificável|Fictícia|Fictício|Real|Reconhecível|Nominal)\\b)${NOME}(?:\\s+(?:d[aeo]s?\\s+)?${NOME})?`),
@@ -23,7 +24,8 @@ const PADROES = [
 function normalizar(texto) {
   return texto
     .normalize('NFKC')
-    .replace(/[​-‏⁠﻿]/g, '')
+    // Tira todo caractere de formatação invisível (hífen suave, marcas de direção, separadores invisíveis).
+    .replace(/[\p{Cf}­͏]/gu, '')
     .replace(/[‐-―−]/g, '-');
 }
 

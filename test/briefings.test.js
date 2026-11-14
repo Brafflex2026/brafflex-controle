@@ -98,6 +98,31 @@ it('dois envios simultâneos geram versões diferentes, sem repetir número', as
   expect(versoes).toEqual([1, 2]);
 });
 
+it('muitos envios ao mesmo tempo no mesmo contrato: todos entram, com números 1 a 8', async () => {
+  const c = await novoContrato('Muitos');
+  const rs = await Promise.all(Array.from({ length: 8 }, (_, i) => nova(c.id, `Texto ${i}`)));
+  expect(rs.map((r) => r.status)).toEqual(Array(8).fill(201));
+  const versoes = (await Promise.all(rs.map(json))).map((b) => b.versao).sort((a, b) => a - b);
+  expect(versoes).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+it('a linha informada bate com o que a pessoa digitou, mesmo com linhas em branco no começo', async () => {
+  const r = await nova(contratoA.id, '\n\n\nlinha quatro com cpf 111.444.777-35');
+  expect(r.status).toBe(422);
+  expect((await json(r)).linha).toBe(4);
+});
+
+it('duas confirmações ao mesmo tempo: uma vale, a outra recebe 409, com uma só auditoria', async () => {
+  const v = await json(await nova(contratoA.id, 'Confirmação concorrente'));
+  const [x, y] = await Promise.all([
+    chamar(`/api/briefings/${v.id}/confirmar`, { metodo: 'POST', corpo: { confirmadoEm: '2026-11-10' } }),
+    chamar(`/api/briefings/${v.id}/confirmar`, { metodo: 'POST', corpo: { confirmadoEm: '2026-11-11' } }),
+  ]);
+  expect([x.status, y.status].sort()).toEqual([200, 409]);
+  const log = (await db().select().from(auditoriaApp).where(eq(auditoriaApp.entidadeId, v.id))).filter((l) => l.acao === 'confirmar');
+  expect(log.length).toBe(1);
+});
+
 it('sem Idempotency-Key → 400; contrato inexistente → 404', async () => {
   expect((await chamar(`/api/contratos/${contratoA.id}/briefings`, { metodo: 'POST', corpo: { conteudo: 'x' } })).status).toBe(400);
   expect((await nova('nao-existe', 'x')).status).toBe(404);
