@@ -40,6 +40,14 @@ export const api = {
   verificarIntegracao: (id, verificadaEm) => pedir(`/api/integracoes/${id}/verificar`, { method: 'POST', body: JSON.stringify({ verificadaEm }) }),
   revogarIntegracao: (id) => pedir(`/api/integracoes/${id}/revogar`, { method: 'POST' }),
   reativarIntegracao: (id) => pedir(`/api/integracoes/${id}/reativar`, { method: 'POST' }),
+  auditoria: (filtros = {}, antes = null) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(filtros)) if (v) p.set(k, v);
+    if (antes) p.set('antes', String(antes));
+    p.set('limite', '50');
+    return pedir(`/api/auditoria?${p}`);
+  },
+  filtrosAuditoria: () => pedir('/api/auditoria/filtros'),
   briefings: (contratoId) => pedir(`/api/contratos/${contratoId}/briefings`),
   criarBriefing: (contratoId, conteudo, chave) =>
     pedir(`/api/contratos/${contratoId}/briefings`, { method: 'POST', body: JSON.stringify({ conteudo }), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),
