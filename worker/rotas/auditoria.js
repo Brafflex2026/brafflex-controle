@@ -22,7 +22,8 @@ const lerJson = (valor) => {
 function dataValida(s) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+  const ano = Number(s.slice(0, 4));
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s && ano >= 2020 && ano <= 2100;
 }
 const inicioDoDia = (dia) => new Date(`${dia}T00:00:00${FUSO}`).toISOString();
 const inicioDoDiaSeguinte = (dia) => new Date(new Date(`${dia}T00:00:00${FUSO}`).getTime() + 86_400_000).toISOString();

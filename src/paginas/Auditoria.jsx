@@ -70,12 +70,15 @@ export function Auditoria() {
   const [erroFiltro, setErroFiltro] = useState('');
   const pedidoAtual = useRef(0);
 
-  useEffect(() => { api.filtrosAuditoria().then(setDisp).catch(() => {}); }, []);
+  const [semOpcoes, setSemOpcoes] = useState(false);
+  useEffect(() => { api.filtrosAuditoria().then(setDisp).catch(() => setSemOpcoes(true)); }, []);
 
   const carregar = useCallback(async () => {
     const numero = ++pedidoAtual.current;
     setEstado('carregando');
     setErroFiltro('');
+    setErroMais('');
+    setCarregandoMais(false);
     setAberto(null);
     try {
       const r = await api.auditoria(f);
@@ -105,9 +108,9 @@ export function Auditoria() {
       setItens((atuais) => [...atuais, ...r.itens]);
       setProximo(r.proximo);
     } catch (e) {
-      setErroMais(e.message);
+      if (numero === pedidoAtual.current) setErroMais(e.message);
     } finally {
-      setCarregandoMais(false);
+      if (numero === pedidoAtual.current) setCarregandoMais(false);
     }
   }
 
@@ -152,6 +155,7 @@ export function Auditoria() {
           <Input id="aud-ate" type="date" value={f.ate} min={f.de || undefined} onChange={mudar('ate')} />
         </div>
       </form>
+      {semOpcoes && <p role="status" className="text-sm text-muted-foreground">Não foi possível carregar as opções dos filtros. A lista abaixo continua funcionando.</p>}
       {temFiltro && <Button variant="ghost" size="sm" onClick={() => setF({ entidade: '', acao: '', usuario: '', de: '', ate: '' })}>Limpar filtros</Button>}
       {erroFiltro && <p role="alert" className="text-sm text-destructive">{erroFiltro}</p>}
 

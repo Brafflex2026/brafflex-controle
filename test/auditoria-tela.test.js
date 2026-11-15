@@ -95,6 +95,8 @@ it('valida os parâmetros → 422 com campo', async () => {
   expect(await campo('de=10/11/2026')).toBe('de');
   expect(await campo('ate=2026-02-30')).toBe('ate');
   expect(await campo('de=2026-12-01&ate=2026-11-01')).toBe('ate');
+  expect(await campo('ate=9999-12-31')).toBe('ate');
+  expect(await campo('de=1999-01-01')).toBe('de');
   expect(await campo(`entidade=${'a'.repeat(100)}`)).toBe('entidade');
 });
 
@@ -131,3 +133,14 @@ it('registro com antes ou depois que não é JSON volta como texto, sem erro', a
   expect(r.itens[0].antes).toBe('texto solto');
   expect(r.itens[0].depois).toBeNull();
 });
+
+it('a fronteira do dia usa a meia-noite de Brasília (03:00 UTC)', async () => {
+  const ins = (ts, id) => env.DB.prepare("INSERT INTO auditoria_app (ts, usuario, acao, entidade, entidade_id) VALUES (?, 'x', 'teste', 'fronteira', ?)").bind(ts, id).run();
+  await ins('2026-03-10T02:59:59.000Z', 'antes-da-meia-noite'); // ainda dia 09 em Brasília
+  await ins('2026-03-10T03:00:00.000Z', 'depois-da-meia-noite'); // já dia 10 em Brasília
+  const dia10 = (await json(await chamar('/api/auditoria?entidade=fronteira&de=2026-03-10&ate=2026-03-10'))).itens.map((i) => i.entidadeId);
+  expect(dia10).toEqual(['depois-da-meia-noite']);
+  const dia9 = (await json(await chamar('/api/auditoria?entidade=fronteira&de=2026-03-09&ate=2026-03-09'))).itens.map((i) => i.entidadeId);
+  expect(dia9).toEqual(['antes-da-meia-noite']);
+});
+
