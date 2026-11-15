@@ -61,6 +61,39 @@ it('recusa valores com cara de segredo', () => {
   for (const ruim of ruins) expect(verificarIdentificador(ruim), ruim).not.toBeNull();
 });
 
+it('recusa formas escondidas de chave: parâmetros de URL, fragmentada, curtas e com credencial', () => {
+  const ruins = [
+    'https://x.com/?access_token=abcdEFGH1234',
+    'https://x.com/?client_secret=abcdEFGH',
+    'https://x.com/?apikey=abcdEFGH',
+    'https://x.com/?sig=abcd1234',
+    'AbCd1234 EfGh5678 IjKl9012 MnOp3456',
+    'AbCd1234.EfGh5678.IjKl9012.MnOp3456',
+    'AbCd1234:EfGh5678:IjKl9012:MnOp3456',
+    'eyJhbGciOi.eyJzdWIiOiIx.abc1',
+    'ya29.a0AfH6SMB',
+    'Bearer abcdefgh12345678',
+    'ghp_abc123',
+    'sk-abc123',
+    'https://admin:Senha123@clinica.com.br',
+    'https://user:pw1@localhost/',
+    'joao%40clinica.com',
+  ];
+  for (const ruim of ruins) expect(verificarIdentificador(ruim), ruim).not.toBeNull();
+});
+
+it('não recusa endereços longos e legítimos de site e perfil', () => {
+  for (const ok of [
+    'https://www.clinicadermatologicamaria-silva-2020.com.br/agendamento',
+    'clinica-dermatologica-dra-ana-silva-2024-sp',
+    'https://www.instagram.com/clinica.dermatologica.dra.ana.silva',
+    'https://www.facebook.com/profile.php?id=100012345678901',
+    'https://clinica.com.br/blog/como-escolher-um-dermatologista-em-sao-paulo',
+  ]) {
+    expect(verificarIdentificador(ok), ok).toBeNull();
+  }
+});
+
 it('identificador enorme é analisado rápido', () => {
   const inicio = performance.now();
   verificarIdentificador('a1'.repeat(10000));
@@ -170,6 +203,27 @@ it('revogar e reativar seguem as transições; revogada não se edita', async ()
   expect(rea.verificadaEm).toBeNull();
   expect(rea.revogadaEm).toBeNull();
   expect((await acao(i.id, 'reativar')).status).toBe(409);
+});
+
+it('revogar uma verificada limpa a data de verificação', async () => {
+  const i = await json(await criar(contratoA.id, { tipo: 'site', idExterno: 'https://limpa.com.br' }));
+  await acao(i.id, 'verificar', {});
+  const rev = await json(await acao(i.id, 'revogar'));
+  expect(rev.verificadaEm).toBeNull();
+});
+
+it('apagar o identificador e verificar ao mesmo tempo nunca deixa verificada sem identificador', async () => {
+  const i = await json(await criar(contratoA.id, { tipo: 'conta Meta', idExterno: 'act_777' }));
+  await Promise.all([chamar(`/api/integracoes/${i.id}`, { metodo: 'PATCH', corpo: { idExterno: null } }), acao(i.id, 'verificar', {})]);
+  const lista = await json(await chamar(`/api/contratos/${contratoA.id}/integracoes`));
+  const final = lista.itens.find((x) => x.id === i.id);
+  expect(final.estado === 'verificada' && final.idExterno === null).toBe(false);
+});
+
+it('erro que não é de duplicata não vira "já existe" no PATCH', async () => {
+  const i = await json(await criar(contratoA.id, { tipo: 'CRM do cliente', idExterno: 'TESTE-CRM-A' }));
+  const r = await chamar(`/api/integracoes/${i.id}`, { metodo: 'PATCH', corpo: { dono: 'TESTE-Novo dono' } });
+  expect(r.status).toBe(200);
 });
 
 it('mudar o identificador de uma integração verificada volta para pendente', async () => {

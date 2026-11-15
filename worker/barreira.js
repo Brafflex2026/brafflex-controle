@@ -12,7 +12,7 @@ const PADROES = [
   ['chave de API', /\b(?:sk-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|xox[abp]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,})\b/],
   ['token de acesso (JWT)', /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}/],
   ['sequência longa de letras e números (parece segredo)', /(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])/],
-  ['senha ou token com valor', /\b(?:senha|password|passwd|token|api[_ -]?key|secret)\b[\s:=]{0,10}["']?(?=[^\s"'<>[\]{}]{0,200}\d)[^\s"'<>[\]{}]{6,}/i],
+  ['senha ou token com valor', /(?<![A-Za-z])(?:senha|password|passwd|token|api[_ -]?key|secret)\b[\s:=]{0,10}["']?(?=[^\s"'<>[\]{}]{0,200}\d)[^\s"'<>[\]{}]{6,}/i],
   [
     'nome de paciente',
     new RegExp(`\\b[Pp]aciente:?\\s+(?!\\[)(?!(?:Identificável|Fictícia|Fictício|Real|Reconhecível|Nominal)\\b)${NOME}(?:\\s+(?:d[aeo]s?\\s+)?${NOME})?`),
@@ -24,6 +24,7 @@ const PADROES = [
 function normalizar(texto) {
   return texto
     .normalize('NFKC')
+    .replace(/%40/gi, '@')
     // Tira todo caractere de formatação invisível (hífen suave, marcas de direção, separadores invisíveis).
     .replace(/[\p{Cf}­͏]/gu, '')
     .replace(/[‐-―−]/g, '-');
@@ -51,13 +52,45 @@ export function verificarTexto(texto, padroes = PADROES) {
 // Número de conta com 10 a 16 dígitos é normal e não pode ser confundido com telefone, CPF ou CNPJ, então esses três
 // padrões ficam de fora. Em troca, recusa o que tem cara de chave de acesso: cadeia longa e opaca e prefixos conhecidos.
 const IGNORADOS_EM_IDENTIFICADOR = new Set(['CPF', 'CNPJ', 'telefone']);
+
+// Trechos de 32+ caracteres que alternam letras e dígitos muitas vezes (a1b2c3…) são típicos de chave aleatória.
+// Endereço e nome de página (letras com um ano no fim, por exemplo) alternam pouco e não são barrados.
+const cadeiaAleatoria = {
+  test(t) {
+    for (const [trecho] of t.matchAll(/[A-Za-z0-9_-]{32,}/g)) {
+      const base = trecho.replace(/[_-]/g, '');
+      if (!/\d/.test(base) || !/[A-Za-z]/.test(base)) continue;
+      const trocas = (base.match(/(?<=\d)(?=[A-Za-z])|(?<=[A-Za-z])(?=\d)/g) ?? []).length;
+      if (trocas >= 4) return true;
+    }
+    return false;
+  },
+};
+
+// Chave dividida em pedaços (por espaço, ponto, dois-pontos ou barra): quatro pedaços seguidos de 4+ caracteres,
+// cada um misturando letras e dígitos.
+const chaveFragmentada = {
+  test(t) {
+    let seguidos = 0;
+    for (const parte of t.split(/[\s.:/]+/)) {
+      if (/^[A-Za-z0-9]{4,}$/.test(parte) && /\d/.test(parte) && /[A-Za-z]/.test(parte)) {
+        if (++seguidos >= 4) return true;
+      } else seguidos = 0;
+    }
+    return false;
+  },
+};
+
 const PADROES_IDENTIFICADOR = [
   ...PADROES.filter(([tipo]) => !IGNORADOS_EM_IDENTIFICADOR.has(tipo)),
-  ['token de acesso conhecido (Meta ou Google)', /(?<![A-Za-z0-9_-])(?:EAA[A-Za-z0-9]{20,}|ya29\.[A-Za-z0-9_-]{10,}|GOCSPX-[A-Za-z0-9_-]{10,})/],
-  [
-    'cadeia longa e opaca (parece chave de acesso)',
-    /(?<![A-Za-z0-9_-])(?=[A-Za-z0-9_-]{32,})(?=[A-Za-z0-9_-]{0,400}\d)(?=[A-Za-z0-9_-]{0,400}[A-Za-z])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])/,
-  ],
+  ['token de acesso conhecido (Meta ou Google)', /(?<![A-Za-z0-9_-])(?:EAA[A-Za-z0-9]{20,}|ya29\.[A-Za-z0-9_-]{6,}|GOCSPX-[A-Za-z0-9_-]{10,})/],
+  ['token do tipo Bearer', /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/i],
+  ['token curto conhecido (GitHub, sk-)', /(?<![A-Za-z0-9_-])(?:gh[pousr]_[A-Za-z0-9]{5,}|sk-(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{5,})/],
+  ['token em formato JWT', /(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]+/],
+  ['chave ou senha dentro do endereço (parâmetro da URL)', /[?&;](?:access_token|refresh_token|id_token|token|key|apikey|api_key|sig|signature|secret|client_secret|auth|password|senha)=[^&\s]{4,}/i],
+  ['usuário e senha dentro do endereço', /:\/\/[^/\s@]+:[^/\s@]+@/],
+  ['cadeia longa e aleatória (parece chave de acesso)', cadeiaAleatoria],
+  ['chave dividida em pedaços', chaveFragmentada],
 ];
 export const verificarIdentificador = (texto) => verificarTexto(texto, PADROES_IDENTIFICADOR);
 

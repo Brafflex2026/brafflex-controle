@@ -136,22 +136,28 @@ integracoes.patch('/integracoes/:id', async (c) => {
       tabela: 'integracao',
       id: i.id,
       mudanca,
-      condicao: `estado != 'revogada' AND ${CONTRATO_ATIVO}`,
+      // Só vale se a linha ainda estiver como foi lida (estado e identificador), para não atropelar outra ação.
+      condicao: `estado = ? AND id_externo IS ? AND ${CONTRATO_ATIVO}`,
+      condicaoBinds: [i.estado, i.idExterno],
       usuario: c.get('usuario').email,
       acao: 'alterar',
       entidade: 'integracao',
       antes,
       depois,
     });
-  } catch {
-    return c.json({ erro: 'já existe uma integração deste tipo com este identificador neste contrato', campo: 'idExterno' }, 409);
+  } catch (e) {
+    // Só é duplicata se a troca mexeu no identificador e o banco reclamou do índice único; o resto é erro de verdade.
+    if (mudou.includes('idExterno') && /UNIQUE/i.test(String(e?.message ?? e))) {
+      return c.json({ erro: 'já existe uma integração deste tipo com este identificador neste contrato', campo: 'idExterno' }, 409);
+    }
+    throw e;
   }
-  if (!ok) return c.json({ erro: 'integração revogada ou contrato encerrado: não é possível editar' }, 409);
+  if (!ok) return c.json({ erro: 'a integração mudou enquanto você editava (ou o contrato foi encerrado); recarregue a tela' }, 409);
   return c.json(await relido(c, i.id));
 });
 
 // Troca de estado atômica: só vale se o estado de partida ainda for o esperado e o contrato estiver ativo.
-async function transicao(c, { de, para, acao, extra = () => ({}), exigir }) {
+async function transicao(c, { de, para, acao, extra = () => ({}), exigir, exigirId = false }) {
   const i = await carregar(c);
   if (!i) return c.json({ erro: 'integração não encontrada' }, 404);
   const k = await carregarContrato(c, i.contratoId);
@@ -171,7 +177,8 @@ async function transicao(c, { de, para, acao, extra = () => ({}), exigir }) {
     tabela: 'integracao',
     id: i.id,
     mudanca: { estado: para, atualizado_em: agora, ...extras.mudanca },
-    condicao: `estado IN (${de.map((e) => `'${e}'`).join(', ')}) AND ${CONTRATO_ATIVO}`,
+    condicao: `estado IN (${de.map((e) => `'${e}'`).join(', ')}) AND id_externo IS ? AND ${exigirId ? 'id_externo IS NOT NULL AND ' : ''}${CONTRATO_ATIVO}`,
+    condicaoBinds: [i.idExterno],
     usuario: c.get('usuario').email,
     acao,
     entidade: 'integracao',
@@ -187,6 +194,7 @@ integracoes.post('/integracoes/:id/verificar', (c) =>
     de: ['pendente'],
     para: 'verificada',
     acao: 'verificar',
+    exigirId: true,
     exigir: (i) => (i.idExterno === null ? 'preencha o identificador antes de verificar' : null),
     extra: (_i, corpo) => {
       const data = corpo.verificadaEm ?? hojeEmBrasilia();
@@ -202,7 +210,7 @@ integracoes.post('/integracoes/:id/revogar', (c) =>
     de: ['pendente', 'verificada'],
     para: 'revogada',
     acao: 'revogar',
-    extra: () => ({ mudanca: { revogada_em: new Date().toISOString() } }),
+    extra: () => ({ mudanca: { revogada_em: new Date().toISOString(), verificada_em: null } }),
   }),
 );
 

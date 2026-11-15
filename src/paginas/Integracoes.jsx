@@ -150,8 +150,9 @@ export function IntegracoesDoContrato({ contratoId, encerrado }) {
   const [falha, setFalha] = useState('');
   const [ocupada, setOcupada] = useState(null);
 
-  const carregar = useCallback(async () => {
-    setEstado('carregando');
+  // `silencioso`: recarrega a lista sem trocar a tela por "carregando", para não piscar nem perder o foco do teclado.
+  const carregar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setEstado('carregando');
     try {
       setDados(await api.integracoes(contratoId));
       setEstado('pronto');
@@ -166,10 +167,10 @@ export function IntegracoesDoContrato({ contratoId, encerrado }) {
     setOcupada(i.id);
     try {
       await fn(i.id);
-      await carregar();
+      await carregar(true);
     } catch (e) {
       setFalha(e.message);
-      if (e.status === 409) await carregar();
+      if (e.status === 409) await carregar(true);
     } finally {
       setOcupada(null);
     }
@@ -205,13 +206,14 @@ export function IntegracoesDoContrato({ contratoId, encerrado }) {
                   </div>
                   {!encerrado && (
                     <div className="flex flex-wrap gap-2">
-                      {i.estado !== 'revogada' && <Button variant="ghost" size="sm" onClick={() => setForm({ integracao: i })}><Pencil aria-hidden="true" />Editar</Button>}
-                      {i.estado === 'pendente' && <Button variant="outline" size="sm" disabled={!i.idExterno || ocupada === i.id} onClick={() => setVerificando(i)} title={i.idExterno ? undefined : 'Preencha o identificador antes de verificar'}>Verificar</Button>}
-                      {i.estado !== 'revogada' && <Button variant="outline" size="sm" disabled={ocupada === i.id} onClick={() => mudar(i, api.revogarIntegracao)}>Revogar</Button>}
-                      {i.estado === 'revogada' && <Button variant="outline" size="sm" disabled={ocupada === i.id} onClick={() => mudar(i, api.reativarIntegracao)}>Reativar</Button>}
+                      {i.estado !== 'revogada' && <Button variant="ghost" size="sm" aria-label={`Editar ${i.tipo}`} onClick={() => setForm({ integracao: i })}><Pencil aria-hidden="true" />Editar</Button>}
+                      {i.estado === 'pendente' && <Button variant="outline" size="sm" disabled={!i.idExterno || ocupada === i.id} aria-label={`Verificar ${i.tipo}`} aria-describedby={i.idExterno ? undefined : `dica-${i.id}`} onClick={() => setVerificando(i)}>Verificar</Button>}
+                      {i.estado !== 'revogada' && <Button variant="outline" size="sm" disabled={ocupada === i.id} aria-label={`Revogar ${i.tipo}`} onClick={() => mudar(i, api.revogarIntegracao)}>Revogar</Button>}
+                      {i.estado === 'revogada' && <Button variant="outline" size="sm" disabled={ocupada === i.id} aria-label={`Reativar ${i.tipo}`} onClick={() => mudar(i, api.reativarIntegracao)}>Reativar</Button>}
                     </div>
                   )}
                 </div>
+                {i.estado === 'pendente' && !i.idExterno && !encerrado && <p id={`dica-${i.id}`} className="text-xs text-muted-foreground">Preencha o identificador (botão Editar) para poder verificar.</p>}
                 <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
                   <div><dt className="text-xs text-muted-foreground">Identificador</dt><dd className="break-all">{i.idExterno ?? <span className="text-muted-foreground">a confirmar</span>}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">Dono</dt><dd>{i.dono ?? <span className="text-muted-foreground">a confirmar</span>}</dd></div>
@@ -222,8 +224,8 @@ export function IntegracoesDoContrato({ contratoId, encerrado }) {
           </ul>
         )}
       </CardContent>
-      <Formulario aberto={form !== null} aoFechar={() => setForm(null)} contratoId={contratoId} integracao={form?.integracao} aoSalvo={() => carregar()} />
-      <Verificar integracao={verificando} aoFechar={() => setVerificando(null)} aoSalvo={() => carregar()} />
+      <Formulario aberto={form !== null} aoFechar={() => setForm(null)} contratoId={contratoId} integracao={form?.integracao} aoSalvo={() => carregar(true)} />
+      <Verificar integracao={verificando} aoFechar={() => setVerificando(null)} aoSalvo={() => carregar(true)} />
     </Card>
   );
 }
