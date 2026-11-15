@@ -5,7 +5,7 @@ import json
 import pathlib
 import sys
 
-sys.dont_write_bytecode = True  # não deixar __pycache__ dentro de ferramentas/
+sys.dont_write_bytecode = True  # não deixar __pycache__ dentro de ferramentas/ (quem importa este módulo já definiu antes)
 
 
 class Adulterada(Exception):

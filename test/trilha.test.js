@@ -15,6 +15,7 @@ let app;
 let assinar;
 const db = () => drizzle(env.DB);
 let seq = 100;
+let unico = 0; // cada demanda real tem um abrir diferente (data e título); o gerador imita isso
 const novoId = () => `D-${900 + ++seq}`;
 
 async function sha(texto) {
@@ -30,7 +31,7 @@ async function cadeia(qtd, { cliente = 'TESTE-Cliente', alterar } = {}) {
     let ev = {
       ator: 'COVO',
       cmd: n === 1 ? 'abrir' : 'escalar',
-      dados: n === 1 ? { caminho: 'curto', cliente, modo: 'SIMULACAO', titulo: 'TESTE titulo' } : { motivo: `motivo ${n}` },
+      dados: n === 1 ? { caminho: 'curto', cliente, modo: 'SIMULACAO', titulo: `TESTE titulo ${++unico}` } : { motivo: `motivo ${n}` },
       n,
       prev,
       ts: '2026-11-14T10:00:00',
@@ -337,3 +338,88 @@ it('o service token só serve para o envio: em qualquer outra rota ou método �
   expect(await tenta('/api/trilha/D-120', 'PUT', {})).toBe(403);
   expect(await tenta('/api/trilha/D-120/extra', 'POST', {})).toBe(403);
 });
+
+// ---------------------------------------------------------------- endurecimento após a revisão
+it('chave chamada "hash" ou "prev" com texto sensível NÃO escapa da barreira', async () => {
+  const id = novoId();
+  const linhas = await cadeia(3, { alterar: (ev, n) => (n === 2 ? { ...ev, dados: { hash: 'CPF 111.444.777-35 e token abc12345' } } : ev) });
+  const r = await enviar(id, corpoDe(id, linhas));
+  expect(r.status).toBe(422);
+  expect(await lerDemanda(id)).toBeNull();
+});
+
+it('a cadeia de uma demanda não pode ser gravada em outra demanda (cópia) → 409', async () => {
+  const a = novoId();
+  const b = novoId();
+  const linhas = await cadeia(4);
+  expect((await enviar(a, corpoDe(a, linhas))).status).toBe(200);
+  const copia = await enviar(b, corpoDe(b, linhas));
+  expect(copia.status).toBe(409);
+  expect((await json(copia)).motivo).toMatch(/outra demanda/i);
+  expect(await lerDemanda(b)).toBeNull();
+});
+
+it('ts fora do formato e verificação com texto sobrando são recusados', async () => {
+  const id = novoId();
+  const comTsRuim = await cadeia(2, { alterar: (ev, n) => (n === 2 ? { ...ev, ts: 'CPF 111.444.777-35' } : ev) });
+  expect((await enviar(id, corpoDe(id, comTsRuim))).status).toBe(422);
+  const linhas = await cadeia(3);
+  const sobra = await enviar(id, corpoDe(id, linhas, { verificacao: 'ÍNTEGRO: 3 eventos íntegros; ligue para (11) 91234-5678' }));
+  expect(sobra.status).toBe(409);
+  const assinados = await enviar(id, corpoDe(id, linhas, { verificacao: 'ÍNTEGRO: 3 eventos íntegros, 3 assinados' }));
+  expect(assinados.status).toBe(200);
+});
+
+it('status e comando fora do vocabulário do trilha.py → 422', async () => {
+  const id = novoId();
+  const linhas = await cadeia(2);
+  const estadoRuim = await enviar(id, corpoDe(id, linhas, { estado: estadoDe(id, { status: 'Concluído com sucesso total' }) }));
+  expect(estadoRuim.status).toBe(422);
+  expect((await json(estadoRuim)).campo).toBe('estado');
+  const cmdRuim = await cadeia(2, { alterar: (ev, n) => (n === 2 ? { ...ev, cmd: 'apagar-tudo' } : ev) });
+  const r = await enviar(id, corpoDe(id, cmdRuim));
+  expect(r.status).toBe(422);
+  expect((await json(r)).campo).toBe('linhas');
+  expect(await lerDemanda(id)).toBeNull();
+});
+
+it('dados com aninhamento profundo → 422, não 500', async () => {
+  const id = novoId();
+  let fundo = 'x';
+  for (let i = 0; i < 200; i++) fundo = { a: fundo };
+  const linhas = await cadeia(2, { alterar: (ev, n) => (n === 2 ? { ...ev, dados: fundo } : ev) });
+  expect((await enviar(id, corpoDe(id, linhas))).status).toBe(422);
+});
+
+it('um envio grande (várias centenas de KB) é gravado sem estourar o limite do banco', async () => {
+  const id = novoId();
+  const texto = 'palavra '.repeat(1200); // ~10 KB por linha
+  const linhas = await cadeia(60, { alterar: (ev, n) => (n > 1 ? { ...ev, dados: { motivo: texto } } : ev) });
+  const r = await enviar(id, corpoDe(id, linhas));
+  expect(r.status).toBe(200);
+  expect(await contarEventos(id)).toBe(60);
+});
+
+it('variantes de caminho e método não escapam do acesso do service token → 403', async () => {
+  const h = async () => ({ 'cf-access-jwt-assertion': await assinar({ common_name: SERVICO }), 'content-type': 'application/json' });
+  const tenta = async (caminho, metodo) => (await app.request(caminho, { method: metodo, headers: await h(), body: metodo === 'GET' || metodo === 'HEAD' ? undefined : '{}' }, env)).status;
+  for (const caminho of ['/api/trilha/D-120/', '/api/trilha//D-120', '/api/Trilha/D-120', '/api/trilha/D-120%2Fx', '/api/trilha/../clientes', '/api/trilha/']) {
+    expect(await tenta(caminho, 'POST'), `POST ${caminho}`).toBeGreaterThanOrEqual(403);
+    expect([403, 404, 422]).toContain(await tenta(caminho, 'POST'));
+  }
+  for (const metodo of ['HEAD', 'OPTIONS', 'DELETE', 'PATCH']) expect(await tenta('/api/trilha/D-120', metodo), metodo).toBe(403);
+  // e nada disso gravou
+  expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM demanda WHERE id = 'D-120' AND recebido_em IS NULL").first()).c).toBe(0);
+});
+
+it('a demanda "tem o id certo": linha do abrir copiada para outro id não passa nem com índice', async () => {
+  const [a, b] = [novoId(), novoId()];
+  const linhas = await cadeia(1);
+  await enviar(a, corpoDe(a, linhas));
+  await expect(
+    env.DB.prepare("INSERT INTO demanda (id, status, versao, devolucoes, estado, n_eventos, trilha_head, recebido_em, atualizado_em) VALUES (?, 'x', 0, 0, '{}', 1, 'h', 'a', 'a')").bind(b).run().then(() =>
+      env.DB.prepare("INSERT INTO trilha_evento (demanda_id, n, ts, cmd, ator, dados, prev, hash, linha, recebido_em) SELECT ?, n, ts, cmd, ator, dados, prev, hash, linha, recebido_em FROM trilha_evento WHERE demanda_id = ? AND n = 1").bind(b, a).run(),
+    ),
+  ).rejects.toThrow();
+});
+

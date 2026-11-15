@@ -57,6 +57,13 @@
       "when": 1794709033379,
       "tag": "0007_trilha_so_acrescimo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794751485434,
+      "tag": "0008_trilha_abrir_unico",
+      "breakpoints": true
     }
   ]
 }

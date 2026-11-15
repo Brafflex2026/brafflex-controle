@@ -3,13 +3,35 @@ import { verificarTrilha } from '../barreira.js';
 
 export const trilha = new Hono();
 
-const MAX_CORPO = 2_000_000;
+const MAX_CORPO = 1_000_000;
 const MAX_LINHAS = 1000;
 const MAX_LINHA = 20_000;
 const MAX_ESTADO = 200_000;
 const HEX64 = /^[0-9a-f]{64}$/;
 const CAMPOS_DA_LINHA = new Set(['n', 'ts', 'cmd', 'ator', 'dados', 'prev', 'assinatura']);
 const CAMPOS_FORA_DA_BARREIRA = new Set(['hash', 'prev', 'assinatura']); // 64 caracteres por natureza
+const TS_FORMATO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+const VERIFICACAO = /^ÍNTEGRO: (\d+) eventos íntegros(?:, \d+ assinados)?$/;
+const PROFUNDIDADE_MAXIMA = 12;
+// Vocabulário do trilha.py (PAPEIS e STATUS). Se o trilha.py ganhar comando ou status novo, o envio recusa com
+// mensagem clara até esta lista ser atualizada: é de propósito, para um token comprometido não gravar valores inventados.
+const COMANDOS = new Set([
+  'abrir', 'aguardar-info', 'info-recebida', 'portao-zero-plano', 'portao-zero-decisao', 'iniciar-producao', 'entrega',
+  'conferencia-mecanica', 'pre-avaliacao', 'revisor', 'humano', 'cliente', 'decisao', 'autorizar-execucao', 'liberar-execucao',
+  'execucao', 'avaliar', 'cancelar', 'escalar', 'cobranca', 'bloqueada',
+]);
+const STATUS = new Set([
+  'Triagem', 'Aguardando info', 'Portão zero', 'Em produção', 'Pré-avaliação', 'Portão 1 — REVISOR', 'Portão 2 — Revisão humana',
+  'Portão 3 — Cliente', 'Aprovado', 'Liberada para execução', 'Em execução', 'Aguardando Rodrigo', 'Cancelado', 'Concluído',
+]);
+
+// Aninhamento profundo derrubaria a análise; passa do limite → recusa.
+function fundoDemais(valor, nivel = 0) {
+  if (nivel > PROFUNDIDADE_MAXIMA) return true;
+  if (Array.isArray(valor)) return valor.some((v) => fundoDemais(v, nivel + 1));
+  if (valor && typeof valor === 'object') return Object.values(valor).some((v) => fundoDemais(v, nivel + 1));
+  return false;
+}
 
 const recusa = (c, status, corpo) => c.json(corpo, status);
 const erro422 = (c, campo, motivo, extra = {}) => recusa(c, 422, { erro: motivo, campo, motivo, ...extra });
@@ -22,7 +44,7 @@ async function sha256(texto) {
 
 // Percorre os textos de um valor (sem olhar os campos de hash) e devolve o motivo do primeiro padrão sensível.
 function procurarSensivel(valor, chave = '') {
-  if (CAMPOS_FORA_DA_BARREIRA.has(chave)) return null;
+  if (CAMPOS_FORA_DA_BARREIRA.has(chave) && typeof valor === 'string' && HEX64.test(valor)) return null;
   if (typeof valor === 'string') return verificarTrilha(valor)?.motivo ?? null;
   if (Array.isArray(valor)) {
     for (const v of valor) {
@@ -57,13 +79,15 @@ function lerLinhas(linhas) {
     if (extras.length) return { falha: ['linhas', `a linha ${i + 1} tem campo desconhecido`, i + 1] };
     const bom =
       Number.isInteger(ev.n) && ev.n >= 1 &&
-      typeof ev.ts === 'string' && ev.ts.length <= 40 &&
+      typeof ev.ts === 'string' && TS_FORMATO.test(ev.ts) &&
       typeof ev.cmd === 'string' && ev.cmd.length > 0 && ev.cmd.length <= 40 &&
       typeof ev.ator === 'string' && ev.ator.length > 0 && ev.ator.length <= 40 &&
       objetoSimples(ev.dados) &&
       typeof ev.prev === 'string' && (ev.prev === '' || HEX64.test(ev.prev)) &&
       (ev.assinatura === undefined || (typeof ev.assinatura === 'string' && HEX64.test(ev.assinatura)));
     if (!bom) return { falha: ['linhas', `a linha ${i + 1} não tem a forma de um evento da trilha`, i + 1] };
+    if (!COMANDOS.has(ev.cmd)) return { falha: ['linhas', `a linha ${i + 1} tem um comando que o trilha.py não conhece`, i + 1] };
+    if (fundoDemais(ev.dados)) return { falha: ['linhas', `a linha ${i + 1} tem dados aninhados demais`, i + 1] };
     itens.push({ texto, ev });
   }
   return { itens };
@@ -72,7 +96,8 @@ function lerLinhas(linhas) {
 function conferirEstado(estado, id) {
   if (!objetoSimples(estado)) return 'o estado precisa ser um objeto';
   if (estado.id !== id) return 'o id do estado não é o da demanda da rota';
-  if (typeof estado.status !== 'string' || estado.status.length === 0 || estado.status.length > 80) return 'status inválido';
+  if (typeof estado.status !== 'string' || !STATUS.has(estado.status)) return 'status desconhecido (fora do vocabulário do trilha.py)';
+  if (fundoDemais(estado)) return 'o estado tem dados aninhados demais';
   if (!Number.isInteger(estado.versao) || estado.versao < 0) return 'versão inválida';
   if (!Number.isInteger(estado.devolucoes) || estado.devolucoes < 0) return 'devoluções inválidas';
   if (JSON.stringify(estado).length > MAX_ESTADO) return 'o estado passa do tamanho permitido';
@@ -109,7 +134,7 @@ trilha.post('/trilha/:demanda', async (c) => {
 
   // A verificação feita no PC precisa dizer "íntegro" e contar as mesmas linhas que chegaram.
   const ultimoN = itens.at(-1).ev.n;
-  const verificada = /^ÍNTEGRO: (\d+) eventos íntegros/.exec(verificacao);
+  const verificada = VERIFICACAO.exec(verificacao);
   if (!verificada) return erro409(c, 'a verificação do PC não confirmou a integridade da trilha');
   if (Number(verificada[1]) !== ultimoN) return erro409(c, 'a verificação do PC não corresponde às linhas enviadas');
 
@@ -142,6 +167,12 @@ trilha.post('/trilha/:demanda', async (c) => {
       const guardada = gravadoEm.get(ev.n);
       if (!guardada || guardada.linha !== texto) return erro409(c, 'a linha já gravada tem conteúdo diferente do enviado', { linha: i + 1 });
     }
+  }
+
+  // A primeira linha (abrir) já pertence a outra demanda? Então esta cadeia é uma cópia: nada liga a linha ao id da rota.
+  if (primeiro === 1) {
+    const dona = await DB.prepare('SELECT demanda_id FROM trilha_evento WHERE hash = ? AND n = 1 AND demanda_id != ?').bind(hashes[0], id).first();
+    if (dona) return erro409(c, 'esta cadeia já pertence a outra demanda', { linha: 1 });
   }
 
   const novas = itens.filter((it) => it.ev.n > gravados);
@@ -183,7 +214,6 @@ trilha.post('/trilha/:demanda', async (c) => {
         ts: it.ev.ts,
         cmd: it.ev.cmd,
         ator: it.ev.ator,
-        dados: JSON.stringify(it.ev.dados),
         prev: it.ev.prev,
         hash: hashes[itens.indexOf(it)],
         assinatura: it.ev.assinatura ?? null,
@@ -217,7 +247,7 @@ trilha.post('/trilha/:demanda', async (c) => {
     DB.prepare(
       `INSERT INTO trilha_evento (demanda_id, n, ts, cmd, ator, dados, prev, hash, assinatura, linha, recebido_em)
        SELECT ?, json_extract(value, '$.n'), json_extract(value, '$.ts'), json_extract(value, '$.cmd'), json_extract(value, '$.ator'),
-              json_extract(value, '$.dados'), json_extract(value, '$.prev'), json_extract(value, '$.hash'), json_extract(value, '$.assinatura'),
+              json_extract(json_extract(value, '$.linha'), '$.dados'), json_extract(value, '$.prev'), json_extract(value, '$.hash'), json_extract(value, '$.assinatura'),
               json_extract(value, '$.linha'), ?
        FROM json_each(?) WHERE ${guarda}`,
     ).bind(id, agora, linhasJson, ...bindsGuarda),
