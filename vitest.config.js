@@ -13,6 +13,7 @@ export default defineConfig(async () => {
             TEST_MIGRATIONS: migrations,
             ACCESS_AUD: 'aud-teste',
             ACCESS_EQUIPE: 'https://equipe-teste.cloudflareaccess.com',
+            TRILHA_COMMON_NAME: 'trilha-teste.access',
           },
         },
       }),

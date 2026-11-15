@@ -3,3 +3,7 @@ dist
 .wrangler
 .dev.vars
 *.log
+
+# Trilhas de simulação da agência: conteúdo interno, não vai para o repositório público.
+# Gere localmente com scripts/gerar-fixture-trilhas.py; sem o arquivo, os testes que dependem dele são pulados.
+test/fixtures/trilhas-reais.json

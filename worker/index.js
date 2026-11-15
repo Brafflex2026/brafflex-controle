@@ -6,6 +6,7 @@ import { contratos } from './rotas/contratos.js';
 import { briefings } from './rotas/briefings.js';
 import { integracoes } from './rotas/integracoes.js';
 import { auditoria } from './rotas/auditoria.js';
+import { trilha } from './rotas/trilha.js';
 
 export function criarApp(opcoes = {}) {
   const app = new Hono();
@@ -27,6 +28,7 @@ export function criarApp(opcoes = {}) {
   app.route('/api', briefings);
   app.route('/api', integracoes);
   app.route('/api', auditoria);
+  app.route('/api', trilha);
 
   return app;
 }

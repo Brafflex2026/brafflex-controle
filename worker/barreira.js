@@ -48,6 +48,11 @@ export function verificarTexto(texto, padroes = PADROES) {
   return null;
 }
 
+// Variante para a trilha: os campos `hash`, `prev` e `assinatura` são sequências de 64 caracteres por natureza,
+// então a regra de "sequência longa" fica de fora. O resto (CPF, telefone, e-mail, chaves, nome de paciente) vale.
+const PADROES_TRILHA = PADROES.filter(([tipo]) => !tipo.startsWith('sequência longa'));
+export const verificarTrilha = (texto) => verificarTexto(texto, PADROES_TRILHA);
+
 // Variante para identificadores de contas e sistemas (id de conta, pixel, endereço de site).
 // Número de conta com 10 a 16 dígitos é normal e não pode ser confundido com telefone, CPF ou CNPJ, então esses três
 // padrões ficam de fora. Em troca, recusa o que tem cara de chave de acesso: cadeia longa e opaca e prefixos conhecidos.

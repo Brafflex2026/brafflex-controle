@@ -7,7 +7,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { ResourceState } from '@/components/resource-state';
 import { api } from '@/api';
 
-const ENTIDADES = { cliente: 'Cliente', contrato: 'Contrato', briefing: 'Briefing', integracao: 'Integração', usuario: 'Usuário' };
+const ENTIDADES = { cliente: 'Cliente', contrato: 'Contrato', briefing: 'Briefing', integracao: 'Integração', usuario: 'Usuário', demanda: 'Demanda' };
 const ACOES = {
   criar: 'Criou',
   alterar: 'Alterou',
@@ -20,6 +20,7 @@ const ACOES = {
   verificar: 'Verificou',
   revogar: 'Revogou',
   reativar: 'Reativou',
+  enviar_trilha: 'Recebeu trilha',
 };
 const rotuloEntidade = (e) => ENTIDADES[e] ?? e;
 const rotuloAcao = (a) => ACOES[a] ?? a;

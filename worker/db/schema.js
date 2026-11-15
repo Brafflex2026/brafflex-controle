@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
 
 export const usuario = sqliteTable('usuario', {
   email: text('email').primaryKey(),
@@ -104,6 +104,48 @@ export const integracao = sqliteTable(
       .$defaultFn(() => new Date().toISOString()),
   },
   (t) => [uniqueIndex('integracao_contrato_tipo_id').on(t.contratoId, t.tipo, t.idExterno)],
+);
+
+// Demanda: o estado vem calculado pelo trilha.py no PC e é guardado como chegou. O app não recalcula.
+export const demanda = sqliteTable('demanda', {
+  id: text('id').primaryKey(), // D-NNN
+  contratoId: text('contrato_id').references(() => contrato.id), // nulo = "sem contrato"
+  clienteTexto: text('cliente_texto'),
+  titulo: text('titulo'),
+  modo: text('modo'),
+  custoAlto: integer('custo_alto'),
+  caminho: text('caminho'),
+  status: text('status').notNull(),
+  versao: integer('versao').notNull(),
+  devolucoes: integer('devolucoes').notNull(),
+  estado: text('estado').notNull(), // JSON do trilha.py
+  nEventos: integer('n_eventos').notNull(),
+  trilhaHead: text('trilha_head').notNull(), // sha256 do texto da última linha
+  ultimoEventoEm: text('ultimo_evento_em'),
+  verificacao: text('verificacao'),
+  recebidoEm: text('recebido_em').notNull(),
+  atualizadoEm: text('atualizado_em').notNull(),
+});
+
+// Eventos da trilha. Só acréscimo. `linha` é o texto exato (é ele que entra no hash da linha seguinte).
+export const trilhaEvento = sqliteTable(
+  'trilha_evento',
+  {
+    demandaId: text('demanda_id')
+      .notNull()
+      .references(() => demanda.id),
+    n: integer('n').notNull(),
+    ts: text('ts').notNull(),
+    cmd: text('cmd').notNull(),
+    ator: text('ator').notNull(),
+    dados: text('dados').notNull(), // JSON
+    prev: text('prev').notNull(),
+    hash: text('hash').notNull(),
+    assinatura: text('assinatura'),
+    linha: text('linha').notNull(),
+    recebidoEm: text('recebido_em').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.demandaId, t.n] })],
 );
 
 export const auditoriaApp = sqliteTable('auditoria_app', {

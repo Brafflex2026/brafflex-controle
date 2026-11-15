@@ -33,7 +33,16 @@ export function exigirAcesso({ jwks } = {}) {
     } catch {
       return c.json({ erro: 'credencial inválida' }, 401);
     }
-    if (!identidade.email) return c.json({ erro: 'rota não permitida para esta credencial' }, 403);
+    if (!identidade.email) {
+      // Credencial de serviço (sem e-mail): só vale o token do script da trilha, e só no envio da trilha.
+      const configurado = c.env.TRILHA_COMMON_NAME;
+      const ehEnvio = c.req.method === 'POST' && /^\/api\/trilha\/[^/]+$/.test(c.req.path);
+      if (configurado && identidade.commonName === configurado && ehEnvio) {
+        c.set('servico', identidade.commonName);
+        return next();
+      }
+      return c.json({ erro: 'rota não permitida para esta credencial' }, 403);
+    }
 
     const [u] = await drizzle(c.env.DB).select().from(usuario).where(eq(usuario.email, identidade.email));
     if (!u) return c.json({ erro: 'usuário não autorizado' }, 403);

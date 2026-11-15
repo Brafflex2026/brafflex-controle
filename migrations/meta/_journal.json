@@ -43,6 +43,20 @@
       "when": 1794707544633,
       "tag": "0005_auditoria_so_acrescimo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794709028379,
+      "tag": "0006_wet_gunslinger",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794709033379,
+      "tag": "0007_trilha_so_acrescimo",
+      "breakpoints": true
     }
   ]
 }
