@@ -21,11 +21,13 @@ const ACOES = {
   revogar: 'Revogou',
   reativar: 'Reativou',
   enviar_trilha: 'Recebeu trilha',
+  ligar_contrato: 'Ligou a um contrato',
 };
 const rotuloEntidade = (e) => ENTIDADES[e] ?? e;
 const rotuloAcao = (a) => ACOES[a] ?? a;
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
-const linkDaEntidade = (i) => (i.entidade === 'cliente' ? `#/clientes/${i.entidadeId}` : i.entidade === 'contrato' ? `#/contratos/${i.entidadeId}` : null);
+const linkDaEntidade = (i) =>
+  i.entidade === 'cliente' ? `#/clientes/${i.entidadeId}` : i.entidade === 'contrato' ? `#/contratos/${i.entidadeId}` : i.entidade === 'demanda' ? `#/demandas/${i.entidadeId}` : null;
 const mostrar = (v) => (v === null || v === undefined ? '—' : typeof v === 'string' ? v : JSON.stringify(v, null, 2));
 
 function Detalhe({ item }) {

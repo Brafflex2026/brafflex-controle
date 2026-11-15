@@ -48,6 +48,14 @@ export const api = {
     return pedir(`/api/auditoria?${p}`);
   },
   filtrosAuditoria: () => pedir('/api/auditoria/filtros'),
+  demandas: (filtros = {}) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(filtros)) if (v) p.set(k, v === true ? '1' : v);
+    return pedir(`/api/demandas?${p}`);
+  },
+  demanda: (id) => pedir(`/api/demandas/${encodeURIComponent(id)}`),
+  alterarDemanda: (id, dados) => pedir(`/api/demandas/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(dados) }),
+  ligarDemanda: (id, contratoId) => pedir(`/api/demandas/${encodeURIComponent(id)}/ligar-contrato`, { method: 'POST', body: JSON.stringify({ contratoId }) }),
   briefings: (contratoId) => pedir(`/api/contratos/${contratoId}/briefings`),
   criarBriefing: (contratoId, conteudo, chave) =>
     pedir(`/api/contratos/${contratoId}/briefings`, { method: 'POST', body: JSON.stringify({ conteudo }), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),

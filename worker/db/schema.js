@@ -123,6 +123,11 @@ export const demanda = sqliteTable('demanda', {
   trilhaHead: text('trilha_head').notNull(), // sha256 do texto da última linha
   ultimoEventoEm: text('ultimo_evento_em'),
   verificacao: text('verificacao'),
+  // Anotações do app (a trilha não as conhece). Vazio = "a confirmar".
+  prazo: text('prazo'),
+  responsavel: text('responsavel'),
+  pendenciaNota: text('pendencia_nota'),
+  proximoPasso: text('proximo_passo'),
   recebidoEm: text('recebido_em').notNull(),
   atualizadoEm: text('atualizado_em').notNull(),
 });

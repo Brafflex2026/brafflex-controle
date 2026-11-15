@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 const itens = [
   { id: 'inicio', rotulo: 'Início', icone: House, pronto: true },
   { id: 'clientes', rotulo: 'Clientes', icone: Users, pronto: true },
-  { id: 'demandas', rotulo: 'Demandas', icone: ClipboardList },
+  { id: 'demandas', rotulo: 'Demandas', icone: ClipboardList, pronto: true },
   { id: 'funil', rotulo: 'Funil e CRM', icone: Funnel },
   { id: 'anuncios', rotulo: 'Anúncios', icone: Megaphone },
   { id: 'desempenho', rotulo: 'Desempenho', icone: ChartColumn },
