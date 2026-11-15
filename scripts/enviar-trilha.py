@@ -44,6 +44,8 @@ def enviar(url, id_cliente, segredo, demanda, payload):
         method="POST",
         headers={
             "Content-Type": "application/json",
+            # A Cloudflare barra o identificador padrão do urllib (erro 1010); um nome próprio resolve.
+            "User-Agent": "brafflex-enviar-trilha/1.0",
             "CF-Access-Client-Id": id_cliente,
             "CF-Access-Client-Secret": segredo,
         },
@@ -57,7 +59,8 @@ def enviar(url, id_cliente, segredo, demanda, payload):
     try:
         dados = json.loads(texto or "{}")
     except ValueError:
-        return status, {"erro": "resposta que não é do app (o login do Access pode ter barrado o envio)"}
+        trecho = " ".join(texto.split())[:80]
+        return status, {"erro": f"resposta que não é do app (o login do Access ou a Cloudflare barrou o envio): {trecho}"}
     return status, dados if isinstance(dados, dict) else {"erro": "resposta inesperada"}
 
 
