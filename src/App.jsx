@@ -5,6 +5,7 @@ import { Clientes } from '@/paginas/Clientes';
 import { PaginaContrato } from '@/paginas/Contratos';
 import { Auditoria } from '@/paginas/Auditoria';
 import { Demandas } from '@/paginas/Demandas';
+import { Decisoes } from '@/paginas/Decisoes';
 import { api } from '@/api';
 
 // Rota simples pelo endereço: #/ (início), #/clientes e #/clientes/<id>.
@@ -42,6 +43,8 @@ export default function App() {
     <Shell usuario={usuario} atual={rota.pagina}>
       {rota.pagina === 'clientes' ? (
         <Clientes id={rota.id} />
+      ) : rota.pagina === 'decisoes' ? (
+        <Decisoes />
       ) : rota.pagina === 'demandas' ? (
         <Demandas id={rota.id} />
       ) : rota.pagina === 'auditoria' ? (

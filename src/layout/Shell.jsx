@@ -9,7 +9,7 @@ const itens = [
   { id: 'funil', rotulo: 'Funil e CRM', icone: Funnel },
   { id: 'anuncios', rotulo: 'Anúncios', icone: Megaphone },
   { id: 'desempenho', rotulo: 'Desempenho', icone: ChartColumn },
-  { id: 'decisoes', rotulo: 'Decisões', icone: Scale },
+  { id: 'decisoes', rotulo: 'Decisões', icone: Scale, pronto: true },
   { id: 'auditoria', rotulo: 'Auditoria', icone: History, pronto: true },
 ];
 

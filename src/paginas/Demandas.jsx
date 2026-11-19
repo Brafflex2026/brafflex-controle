@@ -288,9 +288,11 @@ function Resumo({ rotulo, valor }) {
 function Detalhe({ id }) {
   const [estado, setEstado] = useState('carregando');
   const [info, setInfo] = useState(null);
+  const [decisoes, setDecisoes] = useState([]);
 
   const carregar = useCallback(async () => {
     setEstado('carregando');
+    api.decisoes({ demanda: id }).then((r) => setDecisoes(r.itens)).catch(() => setDecisoes([]));
     try {
       setInfo(await api.demanda(id));
       setEstado('pronto');
@@ -346,6 +348,17 @@ function Detalhe({ id }) {
       </Card>
 
       <Anotacoes demanda={demanda} aoSalvar={atualizarDemanda} />
+
+      {decisoes.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Decisões desta demanda</CardTitle></CardHeader>
+          <CardContent>
+            <ul className="space-y-1 text-sm">
+              {decisoes.map((x) => <li key={x.id}><a href="#/decisoes" className="font-medium text-brand-700 hover:underline">{x.id}</a> — {x.titulo} <span className="text-xs text-muted-foreground">({dia(x.data)})</span></li>)}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

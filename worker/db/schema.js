@@ -153,7 +153,38 @@ export const trilhaEvento = sqliteTable(
   (t) => [primaryKey({ columns: [t.demandaId, t.n] })],
 );
 
-export const auditoriaApp = sqliteTable('auditoria_app', {
+// Decisões e propostas: só acréscimo (a API responde 405 e o banco recusa UPDATE/DELETE por gatilho).
+export const decisao = sqliteTable('decisao', {
+  id: text('id').primaryKey(), // DEC-NNN
+  chave: text('chave'),
+  data: text('data').notNull(),
+  demandaRef: text('demanda_ref'), // D-NNN ou texto livre
+  nivel: integer('nivel').notNull(), // 2 (COVO) ou 3 (Rodrigo)
+  quem: text('quem').notNull(),
+  titulo: text('titulo').notNull(),
+  decisao: text('decisao').notNull(),
+  motivo: text('motivo'),
+  comoDesfazer: text('como_desfazer'),
+  observacoes: text('observacoes'),
+  corrigeId: text('corrige_id'),
+  propostaId: text('proposta_id'),
+  origem: text('origem', { enum: ['app', 'importada'] }).notNull(),
+  criadoEm: text('criado_em').notNull(),
+  criadoPor: text('criado_por').notNull(),
+});
+
+export const proposta = sqliteTable('proposta', {
+  id: text('id').primaryKey(), // P-NNN
+  chave: text('chave'),
+  titulo: text('titulo').notNull(),
+  texto: text('texto').notNull(),
+  decisaoId: text('decisao_id'),
+  origem: text('origem', { enum: ['app', 'importada'] }).notNull(),
+  criadoEm: text('criado_em').notNull(),
+  criadoPor: text('criado_por').notNull(),
+});
+
+export const auditoriaApp =sqliteTable('auditoria_app', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   ts: text('ts')
     .notNull()

@@ -8,3 +8,5 @@ dist
 # Gere localmente com scripts/gerar-fixture-trilhas.py; sem o arquivo, os testes que dependem dele são pulados.
 test/fixtures/trilhas-reais.json
 scripts/__pycache__/
+test/fixtures/decisoes-real.md
+test/fixtures/propostas-real.md
