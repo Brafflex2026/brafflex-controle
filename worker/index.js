@@ -9,6 +9,7 @@ import { auditoria } from './rotas/auditoria.js';
 import { trilha } from './rotas/trilha.js';
 import { demandas } from './rotas/demandas.js';
 import { decisoes } from './rotas/decisoes.js';
+import { leads } from './rotas/leads.js';
 
 export function criarApp(opcoes = {}) {
   const app = new Hono();
@@ -33,6 +34,7 @@ export function criarApp(opcoes = {}) {
   app.route('/api', trilha);
   app.route('/api', demandas);
   app.route('/api', decisoes);
+  app.route('/api', leads);
 
   return app;
 }

@@ -68,6 +68,16 @@ export const api = {
   criarProposta: (dados, chave) => pedir('/api/propostas', { method: 'POST', body: JSON.stringify(dados), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),
   previaImportacao: (arquivos) => pedir('/api/decisoes/importar/previa', { method: 'POST', body: JSON.stringify(arquivos) }),
   importarDecisoes: (arquivos, confirmar) => pedir('/api/decisoes/importar', { method: 'POST', body: JSON.stringify({ ...arquivos, confirmar }) }),
+  funis: () => pedir('/api/funis'),
+  leads: (filtros = {}) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(filtros)) if (v) p.set(k, v === true ? '1' : v);
+    return pedir(`/api/leads?${p}`);
+  },
+  lead: (id) => pedir(`/api/leads/${encodeURIComponent(id)}`),
+  criarLead: (dados, chave) => pedir('/api/leads', { method: 'POST', body: JSON.stringify(dados), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),
+  alterarLead: (id, dados) => pedir(`/api/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(dados) }),
+  eventoLead: (id, dados) => pedir(`/api/leads/${encodeURIComponent(id)}/eventos`, { method: 'POST', body: JSON.stringify(dados) }),
   briefings: (contratoId) => pedir(`/api/contratos/${contratoId}/briefings`),
   criarBriefing: (contratoId, conteudo, chave) =>
     pedir(`/api/contratos/${contratoId}/briefings`, { method: 'POST', body: JSON.stringify({ conteudo }), headers: { 'content-type': 'application/json', 'idempotency-key': chave } }),

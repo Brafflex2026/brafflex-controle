@@ -7,7 +7,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { ResourceState } from '@/components/resource-state';
 import { api } from '@/api';
 
-const ENTIDADES = { cliente: 'Cliente', contrato: 'Contrato', briefing: 'Briefing', integracao: 'Integração', usuario: 'Usuário', demanda: 'Demanda', decisao: 'Decisão', proposta: 'Proposta' };
+const ENTIDADES = { cliente: 'Cliente', contrato: 'Contrato', briefing: 'Briefing', integracao: 'Integração', usuario: 'Usuário', demanda: 'Demanda', decisao: 'Decisão', proposta: 'Proposta', lead: 'Lead' };
 const ACOES = {
   criar: 'Criou',
   alterar: 'Alterou',
@@ -23,12 +23,14 @@ const ACOES = {
   enviar_trilha: 'Recebeu trilha',
   ligar_contrato: 'Ligou a um contrato',
   importar: 'Importou',
+  mudar_estagio: 'Mudou de estágio',
+  registrar_contato: 'Registrou contato',
 };
 const rotuloEntidade = (e) => ENTIDADES[e] ?? e;
 const rotuloAcao = (a) => ACOES[a] ?? a;
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
 const linkDaEntidade = (i) =>
-  i.entidade === 'cliente' ? `#/clientes/${i.entidadeId}` : i.entidade === 'contrato' ? `#/contratos/${i.entidadeId}` : i.entidade === 'demanda' ? `#/demandas/${i.entidadeId}` : i.entidade === 'decisao' && i.entidadeId !== 'importacao' ? '#/decisoes' : i.entidade === 'proposta' ? '#/decisoes' : null;
+  i.entidade === 'cliente' ? `#/clientes/${i.entidadeId}` : i.entidade === 'contrato' ? `#/contratos/${i.entidadeId}` : i.entidade === 'demanda' ? `#/demandas/${i.entidadeId}` : i.entidade === 'decisao' && i.entidadeId !== 'importacao' ? '#/decisoes' : i.entidade === 'proposta' ? '#/decisoes' : i.entidade === 'lead' ? `#/funil/${i.entidadeId}` : null;
 const mostrar = (v) => (v === null || v === undefined ? '—' : typeof v === 'string' ? v : JSON.stringify(v, null, 2));
 
 function Detalhe({ item }) {
