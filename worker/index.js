@@ -10,6 +10,7 @@ import { trilha } from './rotas/trilha.js';
 import { demandas } from './rotas/demandas.js';
 import { decisoes } from './rotas/decisoes.js';
 import { leads } from './rotas/leads.js';
+import { leadsImportacao } from './rotas/leads-importacao.js';
 import { aplicarRetencao } from './retencao.js';
 
 export function criarApp(opcoes = {}) {
@@ -36,6 +37,7 @@ export function criarApp(opcoes = {}) {
   app.route('/api', demandas);
   app.route('/api', decisoes);
   app.route('/api', leads);
+  app.route('/api', leadsImportacao);
 
   return app;
 }

@@ -1,0 +1,9 @@
+ID,Empresa,Nota,Faixa,Cidade,Bairro,Endereço,Telefone,WhatsApp,E-mail,Site,Instagram,Place ID,Origem do dado,Data captura,Status,Canal 1º contato,Data 1º contato,Próximo passo,Opt-out (não contatar),Observações
+E1,TESTE-Gráfica Alfa,80,Quente,Niterói,Centro,,(21) 99800-0201,,alfa@teste.exemplo,https://alfa.teste,,ChIJTESTEalfa00000000001,Google Maps,2026-11-01,Não contatado,,,,Não,
+E2,TESTE-Gráfica Beta,75,Quente,Niterói,Icaraí,,(21) 99800-0202,,beta@teste.exemplo,,https://instagram.com/beta.teste,ChIJTESTEbeta00000000002,Google Maps,2026-11-01,Abordado,WhatsApp,2026-11-05,Ligar na sexta,Não,Vende kit escolar
+E3,TESTE-Gráfica Gama,60,Morno,Niterói,Fonseca,,(21) 99800-0203,,,,,ChIJTESTEgama00000000003,Instagram,2026-11-02,Demo agendada,,,,Não,
+E4,TESTE-Gráfica Delta,40,Morno,Niterói,Centro,,(21) 99800-0204,,,,,ChIJTESTEdelta0000000004,Indicação,2026-11-02,Fora do perfil,,,,Não,
+E5,TESTE-Gráfica Épsilon,65,Morno,Niterói,Centro,,(21) 99800-0205,,,,,ChIJTESTEepsilon00000005,Grupo de WhatsApp,2026-11-03,Não contatado,,,,Não,veio do grupo
+E6,TESTE-Gráfica Zeta,50,Morno,Niterói,Centro,,(21) 99800-0206,,,,,ChIJTESTEzeta00000000006,Cartaz,2026-11-03,Não contatado,,,,Não,
+E7,TESTE-Gráfica Eta,70,Quente,Niterói,Centro,,(21) 99800-0207,,,,,ChIJTESTEeta000000000007,Google Maps,2026-11-03,Não contatado,,,,Sim,pediu para sair
+E8,TESTE-Gráfica Teta,70,Quente,Niterói,Centro,,(21) 99800-0201,,,,,ChIJTESTEteta00000000008,Google Maps,2026-11-03,Não contatado,,,,Não,

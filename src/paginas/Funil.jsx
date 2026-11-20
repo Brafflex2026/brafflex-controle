@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Plus, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Plus, TriangleAlert, Upload } from 'lucide-react';
+import { ImportarLeads } from '@/paginas/ImportarLeads';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -167,6 +168,7 @@ function Quadro() {
   const [aplicados, setAplicados] = useState(campos);
   const [soVencidos, setSoVencidos] = useState(false);
   const [novo, setNovo] = useState(false);
+  const [importando, setImportando] = useState(false);
 
   useEffect(() => {
     api.funis().then((f) => { setFunis(f); setFunilId((x) => x || f.itens.find((i) => i.id === 'etiqueteria')?.id || f.itens[0].id); }).catch(() => setEstado('erro'));
@@ -194,7 +196,10 @@ function Quadro() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Funil e CRM</h1>
-        <Button onClick={() => setNovo(true)}><Plus aria-hidden="true" />Novo lead</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setImportando(true)}><Upload aria-hidden="true" />Importar leads</Button>
+          <Button onClick={() => setNovo(true)}><Plus aria-hidden="true" />Novo lead</Button>
+        </div>
       </div>
       <div role="tablist" aria-label="Funis" className="flex flex-wrap gap-2">
         {funis.itens.map((f) => (
@@ -235,7 +240,8 @@ function Quadro() {
         </>
       )}
 
-      <NovoLead aberto={novo} aoFechar={() => setNovo(false)} aoCriado={(l) => { setFunilId(l.funilId); carregar(); }} funis={funis} funilInicial={funilId} />
+      <ImportarLeads aberto={importando} aoFechar={() => setImportando(false)} aoImportado={(f) => { setFunilId(f); carregar(); }} />
+      <NovoLead aberto={novo}aoFechar={() => setNovo(false)} aoCriado={(l) => { setFunilId(l.funilId); carregar(); }} funis={funis} funilInicial={funilId} />
     </div>
   );
 }

@@ -1,0 +1,10 @@
+Clínica,Nota,Faixa,Status,Cidade,Bairro,Endereço,Telefone,WhatsApp,Site,Instagram,Place ID,Sinais,Região de busca
+TESTE-Clínica Aurora,85,Quente,Novo,Macaé,Centro,Rua Fictícia 10,(22) 99900-0101,,https://aurora.teste,,ChIJTESTEaurora000000001,só telefone,Macaé
+TESTE-Clínica Boa Vista,72,Quente,Contatado,Macaé,Cavaleiros,Av. Fictícia 20,(22) 99900-0102,(22) 99900-0103,https://boavista.teste,https://instagram.com/boavista.teste,ChIJTESTEboavista0000002,sem agendamento online,Macaé
+TESTE-Clínica Central,55,Morno,Em negociação,Macaé,Centro,Rua Fictícia 30,(22) 99900-0104,,,,ChIJTESTEcentral00000003,,Macaé
+TESTE-Clínica Descartada,20,Frio,Descartado,Macaé,Imbetiba,Rua Fictícia 40,(22) 99900-0105,,,,ChIJTESTEdescart00000004,,Macaé
+TESTE-Clínica Cliente,90,Quente,Cliente,Macaé,Centro,Rua Fictícia 50,(22) 99900-0106,,,,ChIJTESTEcliente00000005,,Macaé
+TESTE-Clínica Sem Telefone Válido,60,Morno,Novo,Macaé,Centro,Rua Fictícia 60,123,,,,ChIJTESTEsemtel00000006,,Macaé
+,50,Morno,Novo,Macaé,Centro,Rua Fictícia 70,(22) 99900-0107,,,,ChIJTESTEsemnome0000007,,Macaé
+TESTE-Clínica Repetida,60,Morno,Novo,Macaé,Centro,Rua Fictícia 80,(22) 99900-0101,,,,ChIJTESTErepetida000008,,Macaé
+DUPLICADA — TESTE-Clínica Aurora,85,Quente,Descartado,Macaé,Centro,Rua Fictícia 10,(22) 99900-0108,,,,ChIJTESTEduplic00000009,,Macaé

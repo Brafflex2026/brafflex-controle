@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { verificarTexto } from '../barreira.js';
 import { mudarComAuditoria } from '../db/transicao.js';
+import { sha256 } from '../hash.js';
 
 export const leads = new Hono();
 
@@ -16,7 +17,7 @@ const FAIXAS = ['Quente', 'Morno', 'Frio'];
 const ORIGENS_BLOQUEADAS = ['grupo de WhatsApp'];
 
 const LIMITE_LISTA = 500;
-const PLACE_ID = /^(ChIJ|GhIJ)[A-Za-z0-9_-]{15,100}$/;
+export const PLACE_ID = /^(ChIJ|GhIJ)[A-Za-z0-9_-]{15,100}$/;
 const CAMPOS = new Set(['funilId', 'empresa', 'contato', 'telefone', 'placeId', 'nota', 'faixa', 'origem', 'baseLegal', 'consentimentoEm', 'consentimentoComo', 'responsavel', 'observacoes', 'proximoPasso', 'proximoPassoEm']);
 const COLUNA = {
   empresa: 'empresa', contato: 'contato', telefone: 'telefone', placeId: 'place_id', nota: 'nota', faixa: 'faixa', origem: 'origem', baseLegal: 'base_legal',
@@ -34,12 +35,6 @@ const objetoSimples = (v) => v !== null && typeof v === 'object' && !Array.isArr
 const falha = (c, campo, erro, motivo) => c.json({ erro, campo, ...(motivo ? { motivo } : {}) }, 422);
 const hojeEmBrasilia = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 const agora = () => new Date().toISOString();
-
-// SHA-256 em hexadecimal. Serve para guardar quem pediu para sair sem guardar o telefone nem o Place ID.
-async function sha256(texto) {
-  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
-  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
-}
 
 function dataValida(s) {
   if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
@@ -62,7 +57,7 @@ leads.on(['PUT', 'DELETE'], '/leads/:id', semAlterar);
 leads.on(['PUT', 'DELETE'], '/leads', semAlterar);
 
 // Valida o que veio no corpo. Devolve { dados } (campo -> valor já limpo, null = vazio) ou { falha: [campo, mensagem, motivo?] }.
-function validar(corpo) {
+export function validar(corpo) {
   const dados = {};
   const tem = (k) => Object.prototype.hasOwnProperty.call(corpo, k);
   const vazio = (v) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
