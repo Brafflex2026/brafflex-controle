@@ -25,6 +25,9 @@ const ACOES = {
   importar: 'Importou',
   mudar_estagio: 'Mudou de estágio',
   registrar_contato: 'Registrou contato',
+  optout: 'Registrou opt-out (contato apagado)',
+  converter: 'Converteu em cliente',
+  apagar_contato: 'Apagou o contato (retenção de 12 meses)',
 };
 const rotuloEntidade = (e) => ENTIDADES[e] ?? e;
 const rotuloAcao = (a) => ACOES[a] ?? a;

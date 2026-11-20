@@ -369,6 +369,61 @@ function EditarLead({ lead, aoSalvar }) {
   );
 }
 
+function AcoesLead({ lead, aoMudar }) {
+  const [tipo, setTipo] = useState('empresa');
+  const [confirmando, setConfirmando] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function converter() {
+    setOcupado(true);
+    setErro('');
+    try { await api.converterLead(lead.id, { tipo }); await aoMudar(); } catch (x) { setErro(x.message); } finally { setOcupado(false); }
+  }
+  async function sair() {
+    setOcupado(true);
+    setErro('');
+    try { await api.optoutLead(lead.id); setConfirmando(false); await aoMudar(); } catch (x) { setErro(x.message); setConfirmando(false); } finally { setOcupado(false); }
+  }
+
+  if (lead.optOutEm) return <p className="text-sm text-muted-foreground">Este lead pediu para não ser contatado em {dia(lead.optOutEm)}. O contato foi apagado e só o código de verificação do telefone foi guardado, para barrar um novo cadastro.</p>;
+  return (
+    <div className="space-y-4">
+      {lead.clienteId && <p className="text-sm">Este lead já virou cliente. <a href={`#/clientes/${lead.clienteId}`} className="text-brand-700 underline">Abrir o cliente</a></p>}
+      {lead.final === 'Ganho' && !lead.clienteId && (
+        <div className="flex flex-wrap items-end gap-3">
+          <Campo id="cv-tipo" rotulo="Cliente é">
+            <NativeSelect id="cv-tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              <NativeSelectOption value="empresa">Empresa</NativeSelectOption>
+              <NativeSelectOption value="pessoa">Pessoa</NativeSelectOption>
+            </NativeSelect>
+          </Campo>
+          <Button type="button" onClick={converter} disabled={ocupado}>{ocupado ? 'Convertendo…' : 'Converter em cliente'}</Button>
+        </div>
+      )}
+      {lead.final !== 'Ganho' && (
+        <div>
+          <Button type="button" variant="destructive" onClick={() => setConfirmando(true)} disabled={ocupado}>Registrar opt-out</Button>
+          <p className="mt-1 text-xs text-muted-foreground">Use quando a pessoa pedir para não ser mais contatada.</p>
+        </div>
+      )}
+      {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
+      <Dialog open={confirmando} onOpenChange={setConfirmando}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar opt-out de {lead.empresa}?</DialogTitle>
+            <DialogDescription>Isto apaga telefone, nome do contato, Place ID, observações e as notas do histórico. Não tem volta, e esse telefone nunca mais poderá ser cadastrado.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+            <Button type="button" variant="destructive" onClick={sair} disabled={ocupado}>{ocupado ? 'Apagando…' : 'Sim, apagar o contato'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function Detalhe({ id }) {
   const [estado, setEstado] = useState('carregando');
   const [info, setInfo] = useState(null);
@@ -407,6 +462,7 @@ function Detalhe({ id }) {
         {lead.faixa && <Badge variant="secondary">{lead.faixa}{lead.nota !== null ? ` ${lead.nota}` : ''}</Badge>}
         {lead.vencido && <Badge variant="destructive">Passo vencido</Badge>}
       </div>
+      {lead.contatoApagadoEm && <p className="rounded-md border bg-muted/50 p-3 text-sm">O contato deste lead foi apagado em {dia(lead.contatoApagadoEm)} (perdido há mais de 12 meses).</p>}
       <Card>
         <CardHeader><CardTitle className="text-base">Situação</CardTitle></CardHeader>
         <CardContent>
@@ -420,17 +476,25 @@ function Detalhe({ id }) {
         </CardContent>
       </Card>
       <Card>
+        <CardHeader><CardTitle className="text-base">Conversão e opt-out</CardTitle></CardHeader>
+        <CardContent><AcoesLead lead={lead} aoMudar={aposEvento} /></CardContent>
+      </Card>
+      <Card>
         <CardHeader><CardTitle className="text-base">Mover de estágio</CardTitle></CardHeader>
         <CardContent><MoverEstagio lead={lead} funil={funil} aoMudar={aposEvento} /></CardContent>
       </Card>
-      <Card>
-        <CardHeader><CardTitle className="text-base">Registrar contato</CardTitle></CardHeader>
-        <CardContent><RegistrarContato lead={lead} aoRegistrar={aposEvento} /></CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle className="text-base">Editar dados</CardTitle><CardDescription>Telefone e contato são dado pessoal: só ficam aqui, nunca na auditoria.</CardDescription></CardHeader>
-        <CardContent><EditarLead lead={lead} aoSalvar={(l) => setInfo((i) => ({ ...i, lead: l }))} /></CardContent>
-      </Card>
+      {!lead.optOutEm && (
+        <>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Registrar contato</CardTitle></CardHeader>
+            <CardContent><RegistrarContato lead={lead} aoRegistrar={aposEvento} /></CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Editar dados</CardTitle><CardDescription>Telefone e contato são dado pessoal: só ficam aqui, nunca na auditoria.</CardDescription></CardHeader>
+            <CardContent><EditarLead lead={lead} aoSalvar={(l) => setInfo((i) => ({ ...i, lead: l }))} /></CardContent>
+          </Card>
+        </>
+      )}
       <Card>
         <CardHeader><CardTitle className="text-base">Histórico</CardTitle></CardHeader>
         <CardContent>

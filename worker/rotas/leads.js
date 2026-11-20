@@ -35,6 +35,12 @@ const falha = (c, campo, erro, motivo) => c.json({ erro, campo, ...(motivo ? { m
 const hojeEmBrasilia = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 const agora = () => new Date().toISOString();
 
+// SHA-256 em hexadecimal. Serve para guardar quem pediu para sair sem guardar o telefone nem o Place ID.
+async function sha256(texto) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
 function dataValida(s) {
   if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
@@ -131,12 +137,18 @@ const completo = (r, hoje) => ({
   ...resumo(r, hoje), contato: r.contato, telefone: r.telefone, placeId: r.place_id, baseLegal: r.base_legal, consentimentoEm: r.consentimento_em,
   consentimentoComo: r.consentimento_como, ultimoContatoCanal: r.ultimo_contato_canal, motivoPerda: r.motivo_perda, observacoes: r.observacoes,
   criadoEm: r.criado_em, atualizadoEm: r.atualizado_em, criadoPor: r.criado_por,
+  optOutEm: r.opt_out_em, clienteId: r.cliente_id, contatoApagadoEm: r.contato_apagado_em,
 });
 
 const buscar = (DB, id) => DB.prepare(`SELECT ${SELECAO} ${FROM} WHERE l.id = ?`).bind(id).first();
 
 // Descobre qual chave de duplicata já está em uso (e por qual lead), sem devolver o valor.
 async function acharDuplicata(DB, { telefone, placeId }, ignorar = null) {
+  // Quem pediu para sair (opt-out) não volta: confere a lista de hashes antes de olhar os leads.
+  for (const [campo, valor, tipo] of [['telefone', telefone, 'telefone'], ['placeId', placeId, 'place_id']]) {
+    if (!valor) continue;
+    if (await DB.prepare('SELECT 1 AS x FROM contato_bloqueado WHERE hash = ? AND tipo = ?').bind(await sha256(valor), tipo).first()) return { campo, optOut: true };
+  }
   if (telefone) {
     const r = await DB.prepare('SELECT id FROM lead WHERE telefone = ? AND id IS NOT ?').bind(telefone, ignorar).first();
     if (r) return { campo: 'telefone', leadId: r.id };
@@ -147,7 +159,9 @@ async function acharDuplicata(DB, { telefone, placeId }, ignorar = null) {
   }
   return null;
 }
-const respostaDuplicata = (c, d) => c.json({ erro: d.campo === 'telefone' ? 'já existe um lead com este telefone' : 'já existe um lead com este Place ID', campo: d.campo, leadId: d.leadId }, 409);
+const respostaDuplicata = (c, d) => d.optOut
+  ? c.json({ erro: `este ${d.campo === 'telefone' ? 'telefone' : 'Place ID'} pertence a quem pediu para não ser contatado; não pode ser cadastrado de novo`, campo: d.campo, optOut: true }, 409)
+  : c.json({ erro: d.campo === 'telefone' ? 'já existe um lead com este telefone' : 'já existe um lead com este Place ID', campo: d.campo, leadId: d.leadId }, 409);
 
 function regraConsentimento(d) {
   if (d.baseLegal === 'consentimento' && (!d.consentimentoEm || !d.consentimentoComo)) {
@@ -272,6 +286,7 @@ leads.patch('/leads/:id', async (c) => {
   const hoje = hojeEmBrasilia();
   const atual = await buscar(DB, c.req.param('id'));
   if (!atual) return c.json({ erro: 'lead não encontrado' }, 404);
+  if (atual.opt_out_em) return c.json({ erro: 'este lead pediu para não ser contatado: os dados dele não são mais editados' }, 409);
 
   const corpo = await c.req.json().catch(() => null);
   if (!objetoSimples(corpo)) return falha(c, 'corpo', 'envie os campos a alterar');
@@ -331,6 +346,7 @@ leads.post('/leads/:id/eventos', async (c) => {
   const corpo = await c.req.json().catch(() => null);
   if (!objetoSimples(corpo)) return falha(c, 'corpo', 'envie os dados do evento');
   if (corpo.tipo !== 'estagio' && corpo.tipo !== 'contato') return falha(c, 'tipo', 'tipo: use "estagio" ou "contato"');
+  if (lead.opt_out_em && corpo.tipo === 'contato') return c.json({ erro: 'este lead pediu para não ser contatado: não se registra contato' }, 409);
   const permitidos = new Set(['tipo', 'nota', 'proximoPasso', 'proximoPassoEm', ...(corpo.tipo === 'estagio' ? ['estagioId', 'motivoPerda'] : ['canal'])]);
   for (const k of Object.keys(corpo)) if (!permitidos.has(k)) return falha(c, k, `"${k}" não pode ser informado neste tipo de evento`);
 
@@ -372,7 +388,7 @@ leads.post('/leads/:id/eventos', async (c) => {
   if (dest.id === lead.estagio_id) return c.json({ erro: 'o lead já está nesse estágio' }, 409);
   if (lead.final === 'Ganho') return c.json({ erro: 'lead ganho não volta para outro estágio' }, 409);
   if (lead.final === 'Não contatar') return c.json({ erro: 'lead que pediu para não ser contatado não muda de estágio' }, 409);
-  if (dest.final === 'Não contatar') return c.json({ erro: 'o estágio "Não contatar" só é usado pelo opt-out (pedido do próprio lead para sair), que chega na próxima fatia' }, 409);
+  if (dest.final === 'Não contatar') return c.json({ erro: 'o estágio "Não contatar" só é usado pelo opt-out (pedido do próprio lead para sair): use o botão de opt-out' }, 409);
 
   let motivo = null;
   if (dest.final === 'Perdido') {
@@ -399,4 +415,86 @@ leads.post('/leads/:id/eventos', async (c) => {
   ]);
   if (r[0].meta.changes !== 1) return c.json({ erro: 'o lead mudou enquanto você agia; recarregue a tela' }, 409);
   return c.json({ lead: completo(await buscar(DB, lead.id), hoje) }, 201);
+});
+
+// ---------------------------------------------------------------- opt-out: apaga o contato e guarda só o hash
+async function corpoVazio(c) {
+  const texto = (await c.req.text()).trim();
+  if (!texto) return true;
+  try { const j = JSON.parse(texto); return objetoSimples(j) && Object.keys(j).length === 0; } catch { return false; }
+}
+
+leads.post('/leads/:id/optout', async (c) => {
+  const DB = c.env.DB;
+  const hoje = hojeEmBrasilia();
+  const lead = await buscar(DB, c.req.param('id'));
+  if (!lead) return c.json({ erro: 'lead não encontrado' }, 404);
+  if (!(await corpoVazio(c))) return falha(c, 'corpo', 'o opt-out não recebe dados; envie o pedido vazio');
+  if (lead.opt_out_em) return c.json({ erro: 'este lead já pediu para sair' }, 409);
+  if (lead.final === 'Ganho') return c.json({ erro: 'lead ganho já é cliente; pedido de apagar dado de cliente não passa por aqui' }, 409);
+
+  const dest = await DB.prepare("SELECT id, nome FROM estagio WHERE funil_id = ? AND final = 'Não contatar'").bind(lead.funil_id).first();
+  const ts = agora();
+  const usuario = c.get('usuario').email;
+  const hashes = [];
+  if (lead.telefone) hashes.push(['telefone', await sha256(lead.telefone)]);
+  if (lead.place_id) hashes.push(['place_id', await sha256(lead.place_id)]);
+  const guarda = 'changes() = 1';
+  const lancou = 'EXISTS (SELECT 1 FROM lead WHERE id = ? AND opt_out_em = ?)';
+
+  const r = await DB.batch([
+    // Só vale se o lead continua exatamente como foi lido (e sem opt-out): é o que garante que o hash é do telefone que de fato foi apagado.
+    DB.prepare(
+      `UPDATE lead SET estagio_id = ?, estagio_desde = ?, motivo_perda = NULL, telefone = NULL, contato = NULL, place_id = NULL, observacoes = NULL,
+         consentimento_como = NULL, proximo_passo = NULL, proximo_passo_em = NULL, opt_out_em = ?, atualizado_em = ?
+       WHERE id = ? AND opt_out_em IS NULL AND atualizado_em = ? AND estagio_id = ?`,
+    ).bind(dest.id, ts, ts, ts, lead.id, lead.atualizado_em, lead.estagio_id),
+    DB.prepare(`INSERT INTO lead_evento (lead_id, ts, tipo, de, para, canal, nota, usuario) SELECT ?, ?, 'estagio', ?, ?, NULL, NULL, ? WHERE ${guarda}`).bind(lead.id, ts, lead.estagio_nome, dest.nome, usuario),
+    DB.prepare(`INSERT INTO auditoria_app (ts, usuario, acao, entidade, entidade_id, antes, depois) SELECT ?, ?, 'optout', 'lead', ?, ?, ? WHERE ${guarda}`).bind(
+      ts, usuario, lead.id, JSON.stringify({ estagio: lead.estagio_nome }), JSON.stringify({ estagio: dest.nome, contatoApagado: true }),
+    ),
+    ...hashes.map(([tipo, h]) => DB.prepare(`INSERT OR IGNORE INTO contato_bloqueado (hash, tipo, criado_em) SELECT ?, ?, ? WHERE ${lancou}`).bind(h, tipo, ts, lead.id, ts)),
+    DB.prepare(`UPDATE lead_evento SET nota = NULL WHERE lead_id = ? AND nota IS NOT NULL AND ${lancou}`).bind(lead.id, lead.id, ts),
+  ]);
+  if (r[0].meta.changes !== 1) return c.json({ erro: 'o lead mudou enquanto você agia; recarregue a tela' }, 409);
+  return c.json({ lead: completo(await buscar(DB, lead.id), hoje) });
+});
+
+// ---------------------------------------------------------------- converter lead ganho em cliente
+leads.post('/leads/:id/converter', async (c) => {
+  const DB = c.env.DB;
+  const hoje = hojeEmBrasilia();
+  const lead = await buscar(DB, c.req.param('id'));
+  if (!lead) return c.json({ erro: 'lead não encontrado' }, 404);
+
+  const texto = (await c.req.text()).trim();
+  let corpo = {};
+  if (texto) {
+    try { corpo = JSON.parse(texto); } catch { return falha(c, 'corpo', 'envie os dados em JSON'); }
+    if (!objetoSimples(corpo)) return falha(c, 'corpo', 'envie os dados do cliente');
+  }
+  for (const k of Object.keys(corpo)) if (k !== 'tipo') return falha(c, k, `"${k}" não pode ser informado`);
+  const tipo = corpo.tipo ?? 'empresa';
+  if (tipo !== 'pessoa' && tipo !== 'empresa') return falha(c, 'tipo', 'tipo: escolha pessoa ou empresa');
+
+  if (lead.cliente_id) return c.json({ erro: 'este lead já virou cliente', clienteId: lead.cliente_id }, 409);
+  if (lead.final !== 'Ganho') return c.json({ erro: 'só lead no estágio Ganho vira cliente' }, 409);
+  if (lead.empresa.length > 120) return falha(c, 'empresa', 'o nome do cliente aceita até 120 caracteres: encurte o nome da empresa no lead antes de converter');
+
+  const clienteId = crypto.randomUUID();
+  const ts = agora();
+  const usuario = c.get('usuario').email;
+  const guarda = 'changes() = 1';
+  const r = await DB.batch([
+    // Só vale se o lead ainda não tem cliente e continua ganho: duas conversões ao mesmo tempo, só uma passa.
+    DB.prepare('UPDATE lead SET cliente_id = ?, atualizado_em = ? WHERE id = ? AND cliente_id IS NULL AND estagio_id = ?').bind(clienteId, ts, lead.id, lead.estagio_id),
+    DB.prepare(`INSERT INTO cliente (id, chave, nome, tipo, desde, criado_em, atualizado_em) SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${guarda}`).bind(clienteId, `lead-${lead.id}`, lead.empresa, tipo, hoje, ts, ts),
+    DB.prepare(`INSERT INTO auditoria_app (ts, usuario, acao, entidade, entidade_id, antes, depois) SELECT ?, ?, 'criar', 'cliente', ?, NULL, ? WHERE ${guarda}`).bind(ts, usuario, clienteId, JSON.stringify({ nome: lead.empresa, tipo })),
+    DB.prepare(`INSERT INTO auditoria_app (ts, usuario, acao, entidade, entidade_id, antes, depois) SELECT ?, ?, 'converter', 'lead', ?, NULL, ? WHERE ${guarda}`).bind(ts, usuario, lead.id, JSON.stringify({ clienteId })),
+  ]);
+  if (r[0].meta.changes !== 1) {
+    const atual = await buscar(DB, lead.id);
+    return c.json({ erro: 'este lead já virou cliente', ...(atual?.cliente_id ? { clienteId: atual.cliente_id } : {}) }, 409);
+  }
+  return c.json({ lead: completo(await buscar(DB, lead.id), hoje), clienteId }, 201);
 });

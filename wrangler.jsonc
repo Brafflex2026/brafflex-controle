@@ -14,6 +14,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  "triggers": {
+    "crons": ["0 6 1 * *"]
+  },
   "vars": {
     "ACCESS_EQUIPE": "https://brafflex2026.cloudflareaccess.com",
     "TRILHA_COMMON_NAME": "e79fb40372ec1de59c8cec2f348b593c.access"

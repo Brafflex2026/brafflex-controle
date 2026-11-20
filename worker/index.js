@@ -10,6 +10,7 @@ import { trilha } from './rotas/trilha.js';
 import { demandas } from './rotas/demandas.js';
 import { decisoes } from './rotas/decisoes.js';
 import { leads } from './rotas/leads.js';
+import { aplicarRetencao } from './retencao.js';
 
 export function criarApp(opcoes = {}) {
   const app = new Hono();
@@ -39,4 +40,12 @@ export function criarApp(opcoes = {}) {
   return app;
 }
 
-export default criarApp();
+const app = criarApp();
+
+export default {
+  fetch: (...args) => app.fetch(...args),
+  // Cron mensal (wrangler.jsonc): apaga o contato de lead perdido há mais de 12 meses.
+  async scheduled(evento, env, ctx) {
+    ctx.waitUntil(aplicarRetencao(env.DB, { agora: new Date(evento.scheduledTime) }));
+  },
+};
